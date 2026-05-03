@@ -13,7 +13,7 @@ export default function Layout() {
   const isResultDetail = location.pathname.startsWith("/result/");
   const isAnalyzePath = location.pathname === "/analyze";
   // The Analyze page benefits from the wider layout on desktop
-  const wideOnDesktop = isAnalyzePath || location.pathname === "/" || location.pathname === "/pro" || location.pathname === "/pro/success";
+  const wideOnDesktop = isAnalyzePath || location.pathname === "/" || location.pathname === "/pro" || location.pathname === "/pro/success" || location.pathname === "/history" || location.pathname === "/about";
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-bg via-bg to-brand-50/40 flex justify-center">
