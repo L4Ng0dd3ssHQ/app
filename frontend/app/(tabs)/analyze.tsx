@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, SafeAreaView, Keyboard, TouchableWithoutFeedback,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, SafeAreaView, Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
@@ -84,8 +84,7 @@ export default function AnalyzeScreen() {
   return (
     <SafeAreaView style={styles.safe} testID="analyze-screen">
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <Text style={styles.title}>Analyze a Job</Text>
               <View style={styles.quotaPill}>
@@ -153,7 +152,6 @@ export default function AnalyzeScreen() {
 
             <Text style={styles.tip}>Tip: longer JD + resume = sharper match score and bullet suggestions.</Text>
           </ScrollView>
-        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
