@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, Request
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -13,6 +13,10 @@ import uuid
 from datetime import datetime, timezone
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.payments.stripe.checkout import (
+    StripeCheckout,
+    CheckoutSessionRequest,
+)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -22,6 +26,13 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 EMERGENT_LLM_KEY = os.environ['EMERGENT_LLM_KEY']
+STRIPE_API_KEY = os.environ['STRIPE_API_KEY']
+
+# Server-defined Pro packages (NEVER trust amount from frontend)
+PRO_PACKAGES = {
+    "pro_monthly": {"amount": 7.00, "currency": "usd", "label": "LandIt Pro · 30-day pass"},
+}
+PRO_DURATION_DAYS = 30
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -180,6 +191,192 @@ Return the JSON now."""
         logger.exception("Failed to persist analysis")
 
     return result
+
+
+# ===== Stripe / LandIt Pro =====
+
+class CheckoutCreateRequest(BaseModel):
+    package_id: str
+    origin_url: str
+    device_id: str
+
+
+class CheckoutCreateResponse(BaseModel):
+    url: str
+    session_id: str
+
+
+@api_router.post("/checkout", response_model=CheckoutCreateResponse)
+async def create_checkout(req: CheckoutCreateRequest, http_request: Request):
+    if req.package_id not in PRO_PACKAGES:
+        raise HTTPException(status_code=400, detail="Unknown package")
+    if not req.origin_url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Invalid origin_url")
+    if not req.device_id or len(req.device_id) > 64:
+        raise HTTPException(status_code=400, detail="Invalid device_id")
+
+    pkg = PRO_PACKAGES[req.package_id]
+    host_url = str(http_request.base_url).rstrip("/")
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+
+    success_url = f"{req.origin_url}/pro/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{req.origin_url}/pro"
+
+    metadata = {
+        "package_id": req.package_id,
+        "device_id": req.device_id,
+        "product": "landit_pro",
+    }
+    checkout_req = CheckoutSessionRequest(
+        amount=float(pkg["amount"]),
+        currency=pkg["currency"],
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata=metadata,
+    )
+    session = await stripe.create_checkout_session(checkout_req)
+
+    # Persist initial transaction record (NEVER trust amount from frontend)
+    await db.payment_transactions.insert_one({
+        "session_id": session.session_id,
+        "device_id": req.device_id,
+        "package_id": req.package_id,
+        "amount": float(pkg["amount"]),
+        "currency": pkg["currency"],
+        "metadata": metadata,
+        "payment_status": "initiated",
+        "status": "open",
+        "fulfilled": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    return CheckoutCreateResponse(url=session.url, session_id=session.session_id)
+
+
+class CheckoutStatusOut(BaseModel):
+    session_id: str
+    status: str
+    payment_status: str
+    fulfilled: bool
+    pro_until: Optional[str] = None
+
+
+@api_router.get("/checkout/status/{session_id}", response_model=CheckoutStatusOut)
+async def checkout_status(session_id: str, http_request: Request):
+    txn = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+    if not txn:
+        raise HTTPException(status_code=404, detail="Unknown session")
+
+    host_url = str(http_request.base_url).rstrip("/")
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+
+    try:
+        s = await stripe.get_checkout_status(session_id)
+    except Exception as e:
+        logger.exception("checkout status failed")
+        raise HTTPException(status_code=502, detail=f"Stripe error: {e}")
+
+    pro_until: Optional[str] = txn.get("pro_until")
+    fulfilled = bool(txn.get("fulfilled"))
+
+    if s.payment_status == "paid" and not fulfilled:
+        from datetime import timedelta
+        pro_until_dt = datetime.now(timezone.utc) + timedelta(days=PRO_DURATION_DAYS)
+        pro_until = pro_until_dt.isoformat()
+        await db.payment_transactions.update_one(
+            {"session_id": session_id, "fulfilled": {"$ne": True}},
+            {"$set": {
+                "payment_status": s.payment_status,
+                "status": s.status,
+                "fulfilled": True,
+                "pro_until": pro_until,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }},
+        )
+        # Mark the device as Pro
+        device_id = txn.get("device_id")
+        if device_id:
+            await db.pro_devices.update_one(
+                {"device_id": device_id},
+                {"$set": {"device_id": device_id, "pro_until": pro_until,
+                          "updated_at": datetime.now(timezone.utc).isoformat()}},
+                upsert=True,
+            )
+        fulfilled = True
+    elif s.payment_status != txn.get("payment_status") or s.status != txn.get("status"):
+        await db.payment_transactions.update_one(
+            {"session_id": session_id},
+            {"$set": {
+                "payment_status": s.payment_status,
+                "status": s.status,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }},
+        )
+
+    return CheckoutStatusOut(
+        session_id=session_id,
+        status=s.status,
+        payment_status=s.payment_status,
+        fulfilled=fulfilled,
+        pro_until=pro_until,
+    )
+
+
+@api_router.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    body = await request.body()
+    signature = request.headers.get("Stripe-Signature", "")
+    host_url = str(request.base_url).rstrip("/")
+    webhook_url = f"{host_url}/api/webhook/stripe"
+    stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    try:
+        evt = await stripe.handle_webhook(body, signature)
+    except Exception as e:
+        logger.exception("webhook handling failed")
+        raise HTTPException(status_code=400, detail=f"Webhook error: {e}")
+
+    if evt.payment_status == "paid" and evt.session_id:
+        txn = await db.payment_transactions.find_one({"session_id": evt.session_id})
+        if txn and not txn.get("fulfilled"):
+            from datetime import timedelta
+            pro_until = (datetime.now(timezone.utc) + timedelta(days=PRO_DURATION_DAYS)).isoformat()
+            await db.payment_transactions.update_one(
+                {"session_id": evt.session_id, "fulfilled": {"$ne": True}},
+                {"$set": {
+                    "payment_status": "paid",
+                    "status": "complete",
+                    "fulfilled": True,
+                    "pro_until": pro_until,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }},
+            )
+            device_id = txn.get("device_id")
+            if device_id:
+                await db.pro_devices.update_one(
+                    {"device_id": device_id},
+                    {"$set": {"device_id": device_id, "pro_until": pro_until,
+                              "updated_at": datetime.now(timezone.utc).isoformat()}},
+                    upsert=True,
+                )
+    return {"received": True}
+
+
+@api_router.get("/pro/{device_id}")
+async def get_pro_status(device_id: str):
+    doc = await db.pro_devices.find_one({"device_id": device_id}, {"_id": 0})
+    if not doc:
+        return {"is_pro": False, "pro_until": None}
+    pro_until = doc.get("pro_until")
+    is_pro = False
+    if pro_until:
+        try:
+            is_pro = datetime.fromisoformat(pro_until) > datetime.now(timezone.utc)
+        except Exception:
+            is_pro = False
+    return {"is_pro": is_pro, "pro_until": pro_until}
 
 
 app.include_router(api_router)

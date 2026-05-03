@@ -2,6 +2,8 @@ import type { Analysis } from "./types";
 
 const HISTORY_KEY = "landit.history.v1";
 const QUOTA_KEY = "landit.quota.v1";
+const DEVICE_KEY = "landit.device_id.v1";
+const PRO_KEY = "landit.pro.v1";
 export const DAILY_LIMIT = 3;
 
 function safeParse<T>(raw: string | null, fallback: T): T {
@@ -13,6 +15,7 @@ function safeParse<T>(raw: string | null, fallback: T): T {
   }
 }
 
+// ===== History =====
 export function loadHistory(): Analysis[] {
   return safeParse<Analysis[]>(localStorage.getItem(HISTORY_KEY), []);
 }
@@ -36,6 +39,7 @@ export function clearHistory(): void {
   localStorage.removeItem(HISTORY_KEY);
 }
 
+// ===== Daily Quota =====
 function todayKey(): string {
   const d = new Date();
   return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
@@ -59,4 +63,44 @@ export function incrementQuota(): number {
 export function quotaStatus() {
   const used = getQuotaUsed();
   return { used, remaining: Math.max(0, DAILY_LIMIT - used), allowed: used < DAILY_LIMIT };
+}
+
+// ===== Device ID (for Pro identification, no auth) =====
+function uuid(): string {
+  // RFC 4122 v4-ish, fine for non-cryptographic device id
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+export function getDeviceId(): string {
+  let id = localStorage.getItem(DEVICE_KEY);
+  if (!id) {
+    id = uuid();
+    localStorage.setItem(DEVICE_KEY, id);
+  }
+  return id;
+}
+
+// ===== Pro =====
+export type ProState = { is_pro: boolean; pro_until: string | null };
+
+export function getProState(): ProState {
+  const raw = safeParse<ProState | null>(localStorage.getItem(PRO_KEY), null);
+  if (!raw || !raw.pro_until) return { is_pro: false, pro_until: null };
+  const stillActive = new Date(raw.pro_until).getTime() > Date.now();
+  return { is_pro: stillActive, pro_until: raw.pro_until };
+}
+
+export function setProState(state: ProState): void {
+  localStorage.setItem(PRO_KEY, JSON.stringify(state));
+}
+
+export function isPro(): boolean {
+  return getProState().is_pro;
 }

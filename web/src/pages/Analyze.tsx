@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Sparkles, Zap, ArrowLeft, Loader2 } from "lucide-react";
-import { DAILY_LIMIT, incrementQuota, quotaStatus, saveAnalysis } from "../storage";
+import { useNavigate, Link } from "react-router-dom";
+import { Sparkles, Zap, ArrowLeft, Loader2, Crown } from "lucide-react";
+import { DAILY_LIMIT, incrementQuota, isPro, quotaStatus, saveAnalysis } from "../storage";
 import { analyzeJob } from "../api";
 import type { Analysis } from "../types";
 import AnalysisView from "../components/AnalysisView";
+import { track } from "../analytics";
 
 export default function Analyze() {
   const navigate = useNavigate();
@@ -14,9 +15,11 @@ export default function Analyze() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Analysis | null>(null);
   const [remaining, setRemaining] = useState(DAILY_LIMIT);
+  const [pro, setPro] = useState(false);
 
   useEffect(() => {
     setRemaining(quotaStatus().remaining);
+    setPro(isPro());
   }, []);
 
   const onAnalyze = async () => {
@@ -25,20 +28,26 @@ export default function Analyze() {
       setError("Job description is too short. Paste the full posting (at least 30 chars).");
       return;
     }
-    const q = quotaStatus();
-    if (!q.allowed) {
-      setError(`You've used your ${DAILY_LIMIT} free analyses today. Come back tomorrow.`);
-      return;
+    track("analyze_clicked", { has_resume: !!resume.trim(), jd_chars: jd.length });
+    if (!pro) {
+      const q = quotaStatus();
+      if (!q.allowed) {
+        setError(`You've used your ${DAILY_LIMIT} free analyses today. Upgrade to Pro for unlimited.`);
+        track("quota_blocked");
+        return;
+      }
     }
     setLoading(true);
     try {
       const data = await analyzeJob(jd, resume);
       saveAnalysis(data);
-      incrementQuota();
+      if (!pro) incrementQuota();
       setRemaining(quotaStatus().remaining);
       setResult(data);
+      track("analyze_succeeded", { match_score: data.match_score });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e: unknown) {
+      track("analyze_failed");
       setError(e instanceof Error ? e.message : "Something went wrong. Try again.");
     } finally {
       setLoading(false);
@@ -86,14 +95,23 @@ export default function Analyze() {
     <div className="px-4 pt-6" data-testid="analyze-screen">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-3xl font-black text-ink">Analyze a Job</h2>
-        <div data-testid="analyze-quota-pill" className="flex items-center gap-1.5 bg-brand-50 px-3 py-2 rounded-full">
-          <Zap size={14} className="text-brand-700" />
-          <span className="text-xs font-bold text-brand-700">{remaining}/{DAILY_LIMIT} left</span>
-        </div>
+        {pro ? (
+          <div data-testid="pro-pill" className="flex items-center gap-1.5 bg-brand-500 text-white px-3 py-2 rounded-full">
+            <Crown size={14} />
+            <span className="text-xs font-extrabold tracking-wider">PRO</span>
+          </div>
+        ) : (
+          <Link to="/pro" data-testid="analyze-quota-pill" className="flex items-center gap-1.5 bg-brand-50 px-3 py-2 rounded-full hover:bg-brand-100 transition-colors">
+            <Zap size={14} className="text-brand-700" />
+            <span className="text-xs font-bold text-brand-700">{remaining}/{DAILY_LIMIT} left</span>
+          </Link>
+        )}
       </div>
       <p className="text-sm text-muted mb-4">Paste a job description and get an instant fit report.</p>
 
-      <div className="bg-white rounded-2xl shadow-card p-4 mb-3">
+      {/* Input grid: stacked on mobile, 2-col on desktop */}
+      <div className="lg:grid lg:grid-cols-2 lg:gap-4">
+      <div className="bg-white rounded-2xl shadow-card p-4 mb-3 lg:mb-0">
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-extrabold text-ink">Job Description</label>
           <span className="text-[10px] font-extrabold tracking-widest text-brand-500">REQUIRED</span>
@@ -124,6 +142,7 @@ export default function Analyze() {
         />
         <div className="text-right text-[11px] text-muted mt-1.5">{resume.length} chars</div>
       </div>
+      </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-3 mb-3" data-testid="error-msg">
@@ -135,7 +154,7 @@ export default function Analyze() {
         onClick={onAnalyze}
         disabled={disabled}
         data-testid="analyze-btn"
-        className={`w-full flex items-center justify-center gap-2 font-black tracking-widest text-sm py-4 rounded-xl shadow-card transition-colors ${
+        className={`w-full flex items-center justify-center gap-2 font-black tracking-widest text-sm py-4 rounded-xl shadow-card transition-colors mt-3 lg:mt-4 ${
           disabled ? "bg-brand-300 text-white cursor-not-allowed" : "bg-brand-500 hover:bg-brand-600 text-white"
         }`}
       >
@@ -153,6 +172,14 @@ export default function Analyze() {
       <p className="text-xs text-muted text-center mt-3">
         Tip: longer JD + resume = sharper match score and bullet suggestions.
       </p>
+      {!pro && (
+        <Link
+          to="/pro"
+          className="block w-fit mx-auto mt-4 text-xs font-bold text-brand-700 underline-offset-4 hover:underline flex items-center gap-1"
+        >
+          <Crown size={14} /> Hit the daily limit? Go Pro for unlimited.
+        </Link>
+      )}
 
       <button
         onClick={() => navigate("/")}

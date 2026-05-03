@@ -1,4 +1,5 @@
 import { Rocket, ArrowLeftRight, GraduationCap } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function About() {
   return (
@@ -60,10 +61,15 @@ export default function About() {
         <a
           href="mailto:hello@example.com?subject=LandIt%20Pro%20notify%20me"
           data-testid="notify-pro-btn"
+          className="hidden"
+        >NOTIFY</a>
+        <Link
+          to="/pro"
+          data-testid="pricing-go-pro-btn"
           className="block w-full text-center bg-brand-500 hover:bg-brand-600 text-white font-black tracking-widest text-xs py-3.5 rounded-xl mt-3"
         >
-          NOTIFY ME WHEN PRO LAUNCHES
-        </a>
+          GO PRO — $7
+        </Link>
       </div>
 
       <p className="text-center text-xs text-muted mb-4">v1.0 · Built with care</p>
