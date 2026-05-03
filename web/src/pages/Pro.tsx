@@ -36,7 +36,7 @@ export default function Pro() {
   };
 
   return (
-    <div className="px-4 lg:px-10 pt-6 pb-10" data-testid="pro-screen">
+    <div className="max-w-5xl mx-auto px-4 lg:px-10 pt-6 pb-10" data-testid="pro-screen">
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-1 text-sm text-muted hover:text-brand-500 mb-3"
@@ -44,7 +44,7 @@ export default function Pro() {
         <ArrowLeft size={16} /> Back
       </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:items-center">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         <div className="rounded-3xl p-6 lg:p-10 mb-5 lg:mb-0 shadow-card text-white"
              style={{ background: "linear-gradient(135deg, #A56BD6 0%, #7C2FB8 50%, #4B0F8B 100%)" }}>
           <div className="text-[11px] font-extrabold tracking-[0.3em] opacity-90 mb-2">LANDIT PRO</div>
