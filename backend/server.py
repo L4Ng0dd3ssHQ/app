@@ -1,5 +1,4 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -124,15 +123,6 @@ def extract_json(text: str) -> dict:
 @api_router.get("/")
 async def root():
     return {"message": "LandIt API"}
-
-
-@api_router.get("/download/web")
-async def download_web_zip():
-    """Temporary endpoint — serves the LandIt web source as a zip."""
-    path = "/app/landit-web.zip"
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="Zip not found")
-    return FileResponse(path, media_type="application/zip", filename="landit-web.zip")
 
 
 @api_router.post("/analyze", response_model=AnalysisResult)
