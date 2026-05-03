@@ -110,7 +110,7 @@ def extract_json(text: str) -> dict:
 
 @api_router.get("/")
 async def root():
-    return {"message": "Job Description Analyzer API"}
+    return {"message": "LandIt API"}
 
 
 @api_router.post("/analyze", response_model=AnalysisResult)

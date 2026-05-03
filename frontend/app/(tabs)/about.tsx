@@ -15,7 +15,7 @@ export default function AboutScreen() {
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={[styles.hero, SHADOW.card]}
         >
-          <Text style={styles.heroEyebrow}>JOBMATCH ANALYZER</Text>
+          <Text style={styles.heroEyebrow}>LANDIT</Text>
           <Text style={styles.heroTitle}>One job posting → one clear plan.</Text>
           <Text style={styles.heroBody}>
             Paste any job description and (optionally) your resume. Our AI returns the skills that matter, your real fit score, gaps, and ready-to-paste resume bullets.
@@ -67,7 +67,7 @@ export default function AboutScreen() {
           </View>
           <TouchableOpacity
             style={styles.notifyBtn}
-            onPress={() => Linking.openURL("mailto:hello@example.com?subject=JobMatch%20Pro%20notify%20me")}
+            onPress={() => Linking.openURL("mailto:hello@example.com?subject=LandIt%20Pro%20notify%20me")}
             testID="notify-pro-btn"
             activeOpacity={0.85}
           >

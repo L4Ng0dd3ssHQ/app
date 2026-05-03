@@ -1,7 +1,7 @@
-# JobMatch Analyzer — PRD
+# LandIt — PRD
 
 ## Vision
-A single-purpose mobile tool that turns any job posting into an actionable, tailored job-application plan in <30 seconds.
+A single-purpose mobile tool that turns any job posting into an actionable, tailored job-application plan in <30 seconds. Tagline: **"Land the interview. Skip the guesswork."**
 
 ## Core User Flow (MVP)
 1. Open app → Home (purple hero, 3/3 quota visible).
@@ -11,11 +11,11 @@ A single-purpose mobile tool that turns any job posting into an actionable, tail
 
 ## Features Implemented
 - **Tab navigation:** Home / Analyze / History / About (bottom tabs, purple active state).
-- **Home:** Purple gradient hero "Manifest Your Match", live stats (past scans, scans today), 3-step how-it-works, benefit cards, dual CTAs.
+- **Home:** Purple gradient hero "Land the interview", live stats (past scans, scans today), 3-step how-it-works, benefit cards, dual CTAs.
 - **Analyze:** Two textareas, char counter, ANALYZE button auto-disables for JD <30 chars, loading state, alert on quota exceeded.
 - **Result view:** Job title, summary, match-score circle (color-coded green/amber/red), Required vs Preferred skill pills, categorized Key Skills (technical/tools/soft), Missing Skills (red pills), Resume Bullet rewrites (BEFORE/AFTER), numbered Focus Guidance.
 - **History:** Local AsyncStorage list, color-coded score badge, tap to open detail, long-press to delete, Clear All.
-- **About:** Pricing tiers (Free 3/day, Pro coming soon), privacy note, mailto notify-me.
+- **About:** Pricing tiers (Free 3/day, LandIt Pro coming soon), privacy note, mailto notify-me.
 - **Quota:** 3 analyses/day enforced via AsyncStorage daily counter.
 
 ## Tech Stack
@@ -24,15 +24,13 @@ A single-purpose mobile tool that turns any job posting into an actionable, tail
 - Single endpoint `POST /api/analyze` returns strict JSON.
 
 ## Backend API
-- `GET /api/` → health
+- `GET /api/` → health (`"LandIt API"`)
 - `POST /api/analyze` body `{job_description, resume?}` → `AnalysisResult` (id, job_title, match_score, key_skills{technical,soft,tools}, required_skills, preferred_skills, missing_skills, suggested_bullets[{before,after}], focus_guidance, summary, has_resume, created_at).
 
-## Design
-Taco Bell-inspired purple aesthetic: `#7C2FB8` primary, white cards (16-radius, soft shadow), purple-soft pill badges, bold all-caps CTAs.
+## Branding
+- Name: **LandIt**
+- Sub-tag: "Job Match Analyzer"
+- Primary purple `#7C2FB8`, white cards, bold purple CTAs (Taco Bell-inspired).
 
 ## Monetization (future)
-Pro $7/mo: unlimited scans, saved resumes, job tracker.
-
-## Tested
-- Backend: 4/4 pytest passed (schema, validation, GPT-5.2 live).
-- Frontend e2e: full analyze flow, quota decrement, history persistence, navigation all verified.
+LandIt Pro $7/mo: unlimited scans, saved resumes, job tracker.

@@ -27,8 +27,8 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.brand}>JobMatch</Text>
-            <Text style={styles.brandSub}>Analyzer</Text>
+            <Text style={styles.brand}>LandIt</Text>
+            <Text style={styles.brandSub}>JOB MATCH ANALYZER</Text>
           </View>
           <View style={styles.quotaPill} testID="quota-pill">
             <Ionicons name="flash" size={14} color={COLORS.purpleDeep} />
@@ -42,7 +42,7 @@ export default function HomeScreen() {
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={[styles.hero, SHADOW.card]}
         >
-          <Text style={styles.heroEyebrow}>MANIFEST YOUR MATCH</Text>
+          <Text style={styles.heroEyebrow}>LAND IT.</Text>
           <Text style={styles.heroTitle}>Land the interview.{"\n"}Skip the guesswork.</Text>
           <Text style={styles.heroBody}>
             Paste any job description and your resume — get a match score, missing skills, and ready-to-paste resume bullets in seconds.
@@ -124,8 +124,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { padding: SPACING.md, paddingBottom: 40 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: SPACING.md },
-  brand: { fontSize: 28, fontWeight: "900", color: COLORS.text, letterSpacing: -0.5 },
-  brandSub: { fontSize: 14, fontWeight: "700", color: COLORS.purple, marginTop: -4, letterSpacing: 1 },
+  brand: { fontSize: 32, fontWeight: "900", color: COLORS.text, letterSpacing: -0.5 },
+  brandSub: { fontSize: 10, fontWeight: "800", color: COLORS.purple, marginTop: -2, letterSpacing: 1.5 },
   quotaPill: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: COLORS.purpleSoft, paddingHorizontal: 12, paddingVertical: 8,
