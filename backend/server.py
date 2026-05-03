@@ -10,24 +10,24 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
-from emergentintegrations.payments.stripe.checkout import (
-    StripeCheckout,
-    CheckoutSessionRequest,
-)
+
+from openai import OpenAI
 import stripe as stripe_sdk
+
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-EMERGENT_LLM_KEY = os.environ['EMERGENT_LLM_KEY']
-STRIPE_API_KEY = os.environ['STRIPE_API_KEY']
+
+STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
+
 
 # Server-defined Pro packages (NEVER trust amount from frontend)
 PRO_PACKAGES = {
@@ -35,8 +35,15 @@ PRO_PACKAGES = {
 }
 PRO_DURATION_DAYS = 30
 
+
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+
 
 
 # ===== Models =====
@@ -45,15 +52,21 @@ class AnalyzeRequest(BaseModel):
     resume: Optional[str] = ""
 
 
+
+
 class KeySkills(BaseModel):
     technical: List[str] = []
     soft: List[str] = []
     tools: List[str] = []
 
 
+
+
 class BulletSuggestion(BaseModel):
     before: str
     after: str
+
+
 
 
 class AnalysisResult(BaseModel):
@@ -71,9 +84,13 @@ class AnalysisResult(BaseModel):
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
+
+
 SYSTEM_PROMPT = """You are an elite career coach and ATS expert. Analyze a job description and (optionally) a user's resume.
 
+
 Return STRICT JSON only - no prose, no markdown, no code fences. The JSON MUST match this schema exactly:
+
 
 {
   "job_title": "<short title extracted from JD, max 60 chars>",
@@ -93,6 +110,7 @@ Return STRICT JSON only - no prose, no markdown, no code fences. The JSON MUST m
   "summary": "<one-sentence honest assessment, max 160 chars>"
 }
 
+
 Rules:
 - If no resume is provided, set match_score=0, missing_skills=[], and base suggested_bullets on common resume gaps for this role (still 3-5 bullets).
 - match_score = weighted overlap of required_skills (70%) and preferred_skills (30%) found in resume. Be honest, not generous.
@@ -102,17 +120,16 @@ Rules:
 - Output JSON ONLY."""
 
 
+
+
 def extract_json(text: str) -> dict:
-    """Robustly pull the first JSON object out of a model response."""
     text = text.strip()
-    # strip markdown fences
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
     try:
         return json.loads(text)
     except Exception:
         pass
-    # find first { ... last }
     start = text.find("{")
     end = text.rfind("}")
     if start != -1 and end != -1 and end > start:
@@ -120,49 +137,54 @@ def extract_json(text: str) -> dict:
     raise ValueError("Model did not return valid JSON")
 
 
+
+
 @api_router.get("/")
 async def root():
     return {"message": "LandIt API"}
 
 
+
+
 @api_router.post("/analyze", response_model=AnalysisResult)
 async def analyze(req: AnalyzeRequest):
     if not req.job_description or len(req.job_description.strip()) < 30:
-        raise HTTPException(status_code=400, detail="Job description is too short. Paste the full posting (at least 30 chars).")
+        raise HTTPException(status_code=400, detail="Job description is too short.")
+
 
     has_resume = bool(req.resume and req.resume.strip())
+
 
     user_text = f"""JOB DESCRIPTION:
 \"\"\"
 {req.job_description.strip()}
 \"\"\"
 
+
 RESUME:
 \"\"\"
 {req.resume.strip() if has_resume else "(none provided)"}
 \"\"\"
 
+
 Return the JSON now."""
 
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=f"analyze-{uuid.uuid4()}",
-        system_message=SYSTEM_PROMPT,
-    ).with_model("openai", "gpt-5.2")
 
     try:
-        response = await chat.send_message(UserMessage(text=user_text))
+        ai_client = OpenAI()
+        response = ai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_text}
+            ]
+        )
+        data = extract_json(response.choices[0].message.content)
     except Exception as e:
         logger.exception("LLM error")
         raise HTTPException(status_code=502, detail=f"AI provider error: {str(e)}")
 
-    try:
-        data = extract_json(response)
-    except Exception as e:
-        logger.error("JSON parse error: %s | raw: %s", e, response[:500])
-        raise HTTPException(status_code=502, detail="AI returned malformed output. Please retry.")
 
-    # Normalize / safeguard
     ks = data.get("key_skills") or {}
     result = AnalysisResult(
         job_title=str(data.get("job_title") or "Job Analysis")[:80],
@@ -185,16 +207,20 @@ Return the JSON now."""
         has_resume=has_resume,
     )
 
-    # Persist (no _id leak)
+
     try:
         await db.analyses.insert_one(json.loads(result.model_dump_json()))
     except Exception:
         logger.exception("Failed to persist analysis")
 
+
     return result
 
 
+
+
 # ===== Stripe / LandIt Pro =====
+
 
 class CheckoutCreateRequest(BaseModel):
     package_id: str
@@ -202,9 +228,13 @@ class CheckoutCreateRequest(BaseModel):
     device_id: str
 
 
+
+
 class CheckoutCreateResponse(BaseModel):
     url: str
     session_id: str
+
+
 
 
 @api_router.post("/checkout", response_model=CheckoutCreateResponse)
@@ -216,36 +246,46 @@ async def create_checkout(req: CheckoutCreateRequest, http_request: Request):
     if not req.device_id or len(req.device_id) > 64:
         raise HTTPException(status_code=400, detail="Invalid device_id")
 
+
     pkg = PRO_PACKAGES[req.package_id]
-    host_url = str(http_request.base_url).rstrip("/")
-    webhook_url = f"{host_url}/api/webhook/stripe"
-    stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    stripe_sdk.api_key = STRIPE_API_KEY
+
 
     success_url = f"{req.origin_url}/pro/success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{req.origin_url}/pro"
 
-    metadata = {
-        "package_id": req.package_id,
-        "device_id": req.device_id,
-        "product": "landit_pro",
-    }
-    checkout_req = CheckoutSessionRequest(
-        amount=float(pkg["amount"]),
-        currency=pkg["currency"],
-        success_url=success_url,
-        cancel_url=cancel_url,
-        metadata=metadata,
-    )
-    session = await stripe.create_checkout_session(checkout_req)
 
-    # Persist initial transaction record (NEVER trust amount from frontend)
+    try:
+        session = stripe_sdk.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=[{
+                "price_data": {
+                    "currency": pkg["currency"],
+                    "product_data": {"name": pkg["label"]},
+                    "unit_amount": int(pkg["amount"] * 100),
+                },
+                "quantity": 1,
+            }],
+            mode="payment",
+            success_url=success_url,
+            cancel_url=cancel_url,
+            metadata={
+                "package_id": req.package_id,
+                "device_id": req.device_id,
+                "product": "landit_pro",
+            },
+        )
+    except Exception as e:
+        logger.exception("Stripe checkout error")
+        raise HTTPException(status_code=502, detail=f"Stripe error: {str(e)}")
+
+
     await db.payment_transactions.insert_one({
-        "session_id": session.session_id,
+        "session_id": session.id,
         "device_id": req.device_id,
         "package_id": req.package_id,
         "amount": float(pkg["amount"]),
         "currency": pkg["currency"],
-        "metadata": metadata,
         "payment_status": "initiated",
         "status": "open",
         "fulfilled": False,
@@ -253,7 +293,10 @@ async def create_checkout(req: CheckoutCreateRequest, http_request: Request):
         "updated_at": datetime.now(timezone.utc).isoformat(),
     })
 
-    return CheckoutCreateResponse(url=session.url, session_id=session.session_id)
+
+    return CheckoutCreateResponse(url=session.url, session_id=session.id)
+
+
 
 
 class CheckoutStatusOut(BaseModel):
@@ -264,42 +307,32 @@ class CheckoutStatusOut(BaseModel):
     pro_until: Optional[str] = None
 
 
+
+
 @api_router.get("/checkout/status/{session_id}", response_model=CheckoutStatusOut)
-async def checkout_status(session_id: str, http_request: Request):
+async def checkout_status(session_id: str):
     txn = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
     if not txn:
         raise HTTPException(status_code=404, detail="Unknown session")
 
-    # Use stripe SDK directly — emergentintegrations' get_checkout_status has a
-    # pydantic v2 incompatibility with stripe metadata returning StripeObject.
-    stripe_sdk.api_key = STRIPE_API_KEY
-    if "sk_test_emergent" in STRIPE_API_KEY:
-        stripe_sdk.api_base = "https://integrations.emergentagent.com/stripe"
 
+    stripe_sdk.api_key = STRIPE_API_KEY
     try:
         session = stripe_sdk.checkout.Session.retrieve(session_id)
-    except stripe_sdk.error.InvalidRequestError:
-        # Eventual consistency: Stripe proxy can lag ~2s after session creation.
-        # Return our DB record so the frontend can re-poll cleanly.
-        return CheckoutStatusOut(
-            session_id=session_id,
-            status=txn.get("status", "open"),
-            payment_status=txn.get("payment_status", "unpaid"),
-            fulfilled=bool(txn.get("fulfilled")),
-            pro_until=txn.get("pro_until"),
-        )
     except Exception as e:
         logger.exception("checkout status failed")
         raise HTTPException(status_code=502, detail=f"Stripe error: {e}")
 
-    s_status = getattr(session, "status", None) or "open"
-    s_payment_status = getattr(session, "payment_status", None) or "unpaid"
 
-    pro_until: Optional[str] = txn.get("pro_until")
+    s_status = getattr(session, "status", "open")
+    s_payment_status = getattr(session, "payment_status", "unpaid")
+
+
+    pro_until = txn.get("pro_until")
     fulfilled = bool(txn.get("fulfilled"))
 
+
     if s_payment_status == "paid" and not fulfilled:
-        from datetime import timedelta
         pro_until_dt = datetime.now(timezone.utc) + timedelta(days=PRO_DURATION_DAYS)
         pro_until = pro_until_dt.isoformat()
         await db.payment_transactions.update_one(
@@ -321,15 +354,7 @@ async def checkout_status(session_id: str, http_request: Request):
                 upsert=True,
             )
         fulfilled = True
-    elif s_payment_status != txn.get("payment_status") or s_status != txn.get("status"):
-        await db.payment_transactions.update_one(
-            {"session_id": session_id},
-            {"$set": {
-                "payment_status": s_payment_status,
-                "status": s_status,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            }},
-        )
+
 
     return CheckoutStatusOut(
         session_id=session_id,
@@ -340,43 +365,50 @@ async def checkout_status(session_id: str, http_request: Request):
     )
 
 
+
+
 @api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
     body = await request.body()
-    signature = request.headers.get("Stripe-Signature", "")
-    host_url = str(request.base_url).rstrip("/")
-    webhook_url = f"{host_url}/api/webhook/stripe"
-    stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    sig = request.headers.get("Stripe-Signature", "")
+    webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+
+
+    stripe_sdk.api_key = STRIPE_API_KEY
     try:
-        evt = await stripe.handle_webhook(body, signature)
+        event = stripe_sdk.Webhook.construct_event(body, sig, webhook_secret)
     except Exception as e:
-        logger.exception("webhook handling failed")
         raise HTTPException(status_code=400, detail=f"Webhook error: {e}")
 
-    if evt.payment_status == "paid" and evt.session_id:
-        txn = await db.payment_transactions.find_one({"session_id": evt.session_id})
-        if txn and not txn.get("fulfilled"):
-            from datetime import timedelta
-            pro_until = (datetime.now(timezone.utc) + timedelta(days=PRO_DURATION_DAYS)).isoformat()
-            await db.payment_transactions.update_one(
-                {"session_id": evt.session_id, "fulfilled": {"$ne": True}},
-                {"$set": {
-                    "payment_status": "paid",
-                    "status": "complete",
-                    "fulfilled": True,
-                    "pro_until": pro_until,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                }},
-            )
-            device_id = txn.get("device_id")
-            if device_id:
-                await db.pro_devices.update_one(
-                    {"device_id": device_id},
-                    {"$set": {"device_id": device_id, "pro_until": pro_until,
-                              "updated_at": datetime.now(timezone.utc).isoformat()}},
-                    upsert=True,
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        if session.get("payment_status") == "paid":
+            session_id = session["id"]
+            txn = await db.payment_transactions.find_one({"session_id": session_id})
+            if txn and not txn.get("fulfilled"):
+                pro_until = (datetime.now(timezone.utc) + timedelta(days=PRO_DURATION_DAYS)).isoformat()
+                await db.payment_transactions.update_one(
+                    {"session_id": session_id, "fulfilled": {"$ne": True}},
+                    {"$set": {
+                        "payment_status": "paid",
+                        "status": "complete",
+                        "fulfilled": True,
+                        "pro_until": pro_until,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }},
                 )
+                device_id = txn.get("device_id")
+                if device_id:
+                    await db.pro_devices.update_one(
+                        {"device_id": device_id},
+                        {"$set": {"device_id": device_id, "pro_until": pro_until,
+                                  "updated_at": datetime.now(timezone.utc).isoformat()}},
+                        upsert=True,
+                    )
     return {"received": True}
+
+
 
 
 @api_router.get("/pro/{device_id}")
@@ -394,7 +426,10 @@ async def get_pro_status(device_id: str):
     return {"is_pro": is_pro, "pro_until": pro_until}
 
 
+
+
 app.include_router(api_router)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -404,8 +439,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+
 
 
 @app.on_event("shutdown")
