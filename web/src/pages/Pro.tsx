@@ -44,7 +44,7 @@ export default function Pro() {
         <ArrowLeft size={16} /> Back
       </button>
 
-      <div className="lg:grid lg:grid-cols-2 lg:gap-8 lg:items-center">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:items-center">
         <div className="rounded-3xl p-6 lg:p-10 mb-5 lg:mb-0 shadow-card text-white"
              style={{ background: "linear-gradient(135deg, #A56BD6 0%, #7C2FB8 50%, #4B0F8B 100%)" }}>
           <div className="text-[11px] font-extrabold tracking-[0.3em] opacity-90 mb-2">LANDIT PRO</div>
