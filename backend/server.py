@@ -17,6 +17,7 @@ from emergentintegrations.payments.stripe.checkout import (
     StripeCheckout,
     CheckoutSessionRequest,
 )
+import stripe as stripe_sdk
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -269,34 +270,38 @@ async def checkout_status(session_id: str, http_request: Request):
     if not txn:
         raise HTTPException(status_code=404, detail="Unknown session")
 
-    host_url = str(http_request.base_url).rstrip("/")
-    webhook_url = f"{host_url}/api/webhook/stripe"
-    stripe = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    # Use stripe SDK directly — emergentintegrations' get_checkout_status has a
+    # pydantic v2 incompatibility with stripe metadata returning StripeObject.
+    stripe_sdk.api_key = STRIPE_API_KEY
+    if "sk_test_emergent" in STRIPE_API_KEY:
+        stripe_sdk.api_base = "https://integrations.emergentagent.com/stripe"
 
     try:
-        s = await stripe.get_checkout_status(session_id)
+        session = stripe_sdk.checkout.Session.retrieve(session_id)
     except Exception as e:
         logger.exception("checkout status failed")
         raise HTTPException(status_code=502, detail=f"Stripe error: {e}")
 
+    s_status = getattr(session, "status", None) or "open"
+    s_payment_status = getattr(session, "payment_status", None) or "unpaid"
+
     pro_until: Optional[str] = txn.get("pro_until")
     fulfilled = bool(txn.get("fulfilled"))
 
-    if s.payment_status == "paid" and not fulfilled:
+    if s_payment_status == "paid" and not fulfilled:
         from datetime import timedelta
         pro_until_dt = datetime.now(timezone.utc) + timedelta(days=PRO_DURATION_DAYS)
         pro_until = pro_until_dt.isoformat()
         await db.payment_transactions.update_one(
             {"session_id": session_id, "fulfilled": {"$ne": True}},
             {"$set": {
-                "payment_status": s.payment_status,
-                "status": s.status,
+                "payment_status": s_payment_status,
+                "status": s_status,
                 "fulfilled": True,
                 "pro_until": pro_until,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }},
         )
-        # Mark the device as Pro
         device_id = txn.get("device_id")
         if device_id:
             await db.pro_devices.update_one(
@@ -306,20 +311,20 @@ async def checkout_status(session_id: str, http_request: Request):
                 upsert=True,
             )
         fulfilled = True
-    elif s.payment_status != txn.get("payment_status") or s.status != txn.get("status"):
+    elif s_payment_status != txn.get("payment_status") or s_status != txn.get("status"):
         await db.payment_transactions.update_one(
             {"session_id": session_id},
             {"$set": {
-                "payment_status": s.payment_status,
-                "status": s.status,
+                "payment_status": s_payment_status,
+                "status": s_status,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }},
         )
 
     return CheckoutStatusOut(
         session_id=session_id,
-        status=s.status,
-        payment_status=s.payment_status,
+        status=s_status,
+        payment_status=s_payment_status,
         fulfilled=fulfilled,
         pro_until=pro_until,
     )

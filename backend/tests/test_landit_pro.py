@@ -94,7 +94,14 @@ def test_checkout_status_existing_session(s):
     sid = getattr(pytest, "checkout_session_id", None)
     if not sid:
         pytest.skip("no session created")
-    r = s.get(f"{BASE_URL}/api/checkout/status/{sid}", timeout=20)
+    # Emergent Stripe proxy has eventual-consistency: retry a few times
+    import time
+    r = None
+    for _ in range(5):
+        r = s.get(f"{BASE_URL}/api/checkout/status/{sid}", timeout=20)
+        if r.status_code == 200:
+            break
+        time.sleep(2)
     assert r.status_code == 200, r.text
     d = r.json()
     for k in ("session_id", "status", "payment_status", "fulfilled"):
