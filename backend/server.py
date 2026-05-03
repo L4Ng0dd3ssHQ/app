@@ -278,6 +278,16 @@ async def checkout_status(session_id: str, http_request: Request):
 
     try:
         session = stripe_sdk.checkout.Session.retrieve(session_id)
+    except stripe_sdk.error.InvalidRequestError:
+        # Eventual consistency: Stripe proxy can lag ~2s after session creation.
+        # Return our DB record so the frontend can re-poll cleanly.
+        return CheckoutStatusOut(
+            session_id=session_id,
+            status=txn.get("status", "open"),
+            payment_status=txn.get("payment_status", "unpaid"),
+            fulfilled=bool(txn.get("fulfilled")),
+            pro_until=txn.get("pro_until"),
+        )
     except Exception as e:
         logger.exception("checkout status failed")
         raise HTTPException(status_code=502, detail=f"Stripe error: {e}")
