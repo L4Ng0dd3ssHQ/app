@@ -10,7 +10,6 @@ const FEATURES = [
   "Save resumes & re-use across analyses",
   "Job tracker — never lose a posting",
   "Export results as PDF",
-  "Priority AI model & faster response",
   "Cancel any time, 30-day pass",
 ];
 
