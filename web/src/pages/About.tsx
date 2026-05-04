@@ -53,16 +53,11 @@ export default function About() {
         <div className="h-px bg-brand-50 my-2" />
         <div className="flex items-center py-2">
           <div className="flex-1">
-            <div className="font-extrabold text-brand-500">LandIt Pro · Coming Soon</div>
+            <div className="font-extrabold text-brand-500">LandIt Pro</div>
             <div className="text-xs text-muted">Unlimited scans, saved resumes, job tracking</div>
           </div>
-          <div className="text-lg font-black text-brand-500">$7/mo</div>
+          <div className="text-lg font-black text-brand-500">$7</div>
         </div>
-        <a
-          href="mailto:hello@example.com?subject=LandIt%20Pro%20notify%20me"
-          data-testid="notify-pro-btn"
-          className="hidden"
-        >NOTIFY</a>
         <Link
           to="/pro"
           data-testid="pricing-go-pro-btn"
@@ -72,6 +67,17 @@ export default function About() {
         </Link>
       </div>
 
+      <div className="text-[11px] font-extrabold tracking-[0.15em] text-muted mb-2 mt-6">RESOURCES</div>
+      <div className="bg-white rounded-2xl shadow-card p-5 mb-4">
+        <h3 className="font-extrabold text-ink mb-1">Still feeling lost in the job search?</h3>
+        <p className="text-sm text-muted leading-snug mb-4">
+          Our team put together practical guides covering AI-powered resume optimization, career pivoting,
+          and interview prep — designed for real job seekers, not just buzzwords.
+        </p>
+        <a href="YOUR_GUMROAD_URL_HERE" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-black tracking-wider text-sm px-5 py-3 rounded-xl">
+          Browse Resources →
+        </a>
+      </div>
       <p className="text-center text-xs text-muted mb-4">v1.0 · Built with care</p>
     </div>
   );
