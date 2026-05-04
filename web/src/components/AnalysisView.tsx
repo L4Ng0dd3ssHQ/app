@@ -1,5 +1,5 @@
 import {
-  ShieldCheck, Star, Grid3x3, AlertCircle, PenSquare, Flag, FileText, Copy, Check,
+  ShieldCheck, Star, Grid3x3, AlertCircle, PenSquare, Flag, FileText, Copy, Check, Crown, Download,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
