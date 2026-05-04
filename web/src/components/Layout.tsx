@@ -36,7 +36,7 @@ export default function Layout() {
             : "max-w-[480px]"
         } min-h-screen flex flex-col bg-bg shadow-cardLg sm:my-6 sm:rounded-3xl sm:overflow-hidden relative`}
       >
-        <main className="flex-1 overflow-y-auto shell-scroll pb-24 lg:pb-12">
+        <main className="flex-1 overflow-y-auto shell-scroll pb-24 lg:pb-12 lg:pt-16">
           <Outlet />
         </main>
 
