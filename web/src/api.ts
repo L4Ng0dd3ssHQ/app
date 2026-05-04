@@ -1,9 +1,8 @@
-import type { Analysis } from "./types";
+import type { Analysis, SavedResume } from "./types";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string | undefined;
 
 if (!BACKEND_URL) {
-  // eslint-disable-next-line no-console
   console.warn("VITE_BACKEND_URL is not set. API calls will fail.");
 }
 
@@ -59,4 +58,34 @@ export async function getCheckoutStatus(sessionId: string): Promise<CheckoutStat
 export async function getProStatus(deviceId: string): Promise<{ is_pro: boolean; pro_until: string | null }> {
   const res = await fetch(`${BACKEND_URL}/api/pro/${encodeURIComponent(deviceId)}`);
   return asJson<{ is_pro: boolean; pro_until: string | null }>(res);
+}
+
+export async function listResumes(deviceId: string): Promise<SavedResume[]> {
+  const res = await fetch(`${BACKEND_URL}/api/resumes/${encodeURIComponent(deviceId)}`);
+  return asJson<SavedResume[]>(res);
+}
+
+export async function createResume(deviceId: string, label: string, content: string): Promise<SavedResume> {
+  const res = await fetch(`${BACKEND_URL}/api/resumes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_id: deviceId, label, content }),
+  });
+  return asJson<SavedResume>(res);
+}
+
+export async function updateResume(resumeId: string, deviceId: string, data: { label?: string; content?: string }): Promise<SavedResume> {
+  const res = await fetch(`${BACKEND_URL}/api/resumes/${encodeURIComponent(resumeId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_id: deviceId, ...data }),
+  });
+  return asJson<SavedResume>(res);
+}
+
+export async function deleteResume(resumeId: string, deviceId: string): Promise<{ deleted: boolean }> {
+  const res = await fetch(`${BACKEND_URL}/api/resumes/${encodeURIComponent(resumeId)}?device_id=${encodeURIComponent(deviceId)}`, {
+    method: "DELETE",
+  });
+  return asJson<{ deleted: boolean }>(res);
 }
