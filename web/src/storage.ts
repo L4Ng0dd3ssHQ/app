@@ -39,6 +39,19 @@ export function clearHistory(): void {
   localStorage.removeItem(HISTORY_KEY);
 }
 
+// ===== Tracker status (local-only, lives on each Analysis) =====
+export function setAnalysisStatus(id: string, status: JobStatus): void {
+  const list = loadHistory();
+  const idx = list.findIndex((x) => x.id === id);
+  if (idx === -1) return;
+  list[idx] = { ...list[idx], status };
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+}
+
+export function getAnalysisStatus(a: Analysis): JobStatus {
+  return (a.status as JobStatus) || "saved";
+}
+
 // ===== Daily Quota =====
 function todayKey(): string {
   const d = new Date();

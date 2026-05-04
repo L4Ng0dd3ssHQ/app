@@ -558,7 +558,6 @@ async def dev_promote_to_pro(req: DevPromoteRequest):
         raise HTTPException(status_code=404, detail="Not found")
     _validate_device_id(req.device_id)
     days = max(1, min(int(req.days or 30), 365))
-    from datetime import timedelta
     pro_until = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
     await db.pro_devices.update_one(
         {"device_id": req.device_id},

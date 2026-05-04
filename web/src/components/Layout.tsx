@@ -1,19 +1,31 @@
+import { useEffect, useState } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { Home as HomeIcon, Sparkles, Clock, Info } from "lucide-react";
+import { Home as HomeIcon, Sparkles, Clock, Info, FileText } from "lucide-react";
+import { isPro } from "../storage";
 
-const tabs = [
-  { to: "/", label: "Home", icon: HomeIcon },
-  { to: "/analyze", label: "Analyze", icon: Sparkles },
-  { to: "/history", label: "History", icon: Clock },
-  { to: "/about", label: "About", icon: Info },
+const baseTabs = [
+  { to: "/", label: "Home", icon: HomeIcon, end: true },
+  { to: "/analyze", label: "Analyze", icon: Sparkles, end: false },
+  { to: "/history", label: "History", icon: Clock, end: false },
+  { to: "/about", label: "About", icon: Info, end: false },
 ];
+
+const resumesTab = { to: "/resumes", label: "Resumes", icon: FileText, end: false };
 
 export default function Layout() {
   const location = useLocation();
   const isResultDetail = location.pathname.startsWith("/result/");
   const isAnalyzePath = location.pathname === "/analyze";
-  // The Analyze page benefits from the wider layout on desktop
-  const wideOnDesktop = isAnalyzePath || location.pathname === "/" || location.pathname === "/pro" || location.pathname === "/pro/success" || location.pathname === "/history" || location.pathname === "/about";
+  const wideOnDesktop = isAnalyzePath || location.pathname === "/" || location.pathname === "/pro" || location.pathname === "/pro/success" || location.pathname === "/history" || location.pathname === "/about" || location.pathname === "/resumes";
+
+  const [pro, setPro] = useState(false);
+  useEffect(() => {
+    setPro(isPro());
+  }, [location.pathname]);
+
+  const tabs = pro
+    ? [baseTabs[0], baseTabs[1], resumesTab, baseTabs[2], baseTabs[3]]
+    : baseTabs;
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-b from-bg via-bg to-brand-50/40 flex justify-center">

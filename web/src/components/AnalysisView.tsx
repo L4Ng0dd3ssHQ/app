@@ -3,7 +3,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { Analysis } from "../types";
+import { isPro } from "../storage";
+import { downloadAnalysisPDF } from "../pdf";
+import { track } from "../analytics";
 
 function scoreColor(s: number) {
   if (s >= 75) return "text-good border-good";
@@ -78,10 +82,37 @@ function CopyButton({ text }: { text: string }) {
 
 export default function AnalysisView({ data }: { data: Analysis }) {
   const sc = data.match_score;
+  const pro = isPro();
+  const onDownload = () => {
+    track("pdf_downloaded", { match_score: data.match_score });
+    downloadAnalysisPDF(data);
+  };
   return (
     <div className="px-4 pb-8" data-testid="analysis-result">
-      <h2 className="text-2xl font-black text-ink mb-1" data-testid="job-title">{data.job_title}</h2>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h2 className="text-2xl font-black text-ink flex-1" data-testid="job-title">{data.job_title}</h2>
+        {pro ? (
+          <button
+            onClick={onDownload}
+            data-testid="pdf-download-btn"
+            className="shrink-0 flex items-center gap-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 font-extrabold text-xs px-3 py-2 rounded-full transition-colors"
+            title="Download as PDF"
+          >
+            <Download size={14} /> PDF
+          </button>
+        ) : (
+          <Link
+            to="/pro"
+            data-testid="pdf-download-locked"
+            className="shrink-0 flex items-center gap-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 font-extrabold text-xs px-3 py-2 rounded-full transition-colors"
+            title="Download as PDF (Pro)"
+          >
+            <Crown size={12} /> PDF
+          </Link>
+        )}
+      </div>
       {data.summary && <p className="text-sm text-muted leading-snug mb-4">{data.summary}</p>}
+
 
       {/* Match Score */}
       {data.has_resume ? (
