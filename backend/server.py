@@ -425,6 +425,168 @@ async def get_pro_status(device_id: str):
             is_pro = False
     return {"is_pro": is_pro, "pro_until": pro_until}
 
+# ===== Saved Resumes (Pro feature) =====
+
+async def _device_is_pro(device_id: str) -> bool:
+    doc = await db.pro_devices.find_one({"device_id": device_id}, {"_id": 0, "pro_until": 1})
+    if not doc or not doc.get("pro_until"):
+        return False
+    try:
+        return datetime.fromisoformat(doc["pro_until"]) > datetime.now(timezone.utc)
+    except Exception:
+        return False
+
+
+def _validate_device_id(device_id: str) -> str:
+    if not device_id or len(device_id) > 64 or len(device_id) < 8:
+        raise HTTPException(status_code=400, detail="Invalid device_id")
+    return device_id
+
+
+class SavedResume(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    device_id: str
+    label: str
+    content: str
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class ResumeCreateRequest(BaseModel):
+    device_id: str
+    label: str
+    content: str
+
+
+class ResumeUpdateRequest(BaseModel):
+    device_id: str
+    label: Optional[str] = None
+    content: Optional[str] = None
+
+
+MAX_RESUMES = 25
+MAX_RESUME_CHARS = 50000
+MAX_LABEL_CHARS = 80
+
+
+@api_router.post("/resumes", response_model=SavedResume)
+async def create_resume(req: ResumeCreateRequest):
+    _validate_device_id(req.device_id)
+    if not await _device_is_pro(req.device_id):
+        raise HTTPException(status_code=403, detail="Saved resumes are a Pro feature.")
+    label = (req.label or "").strip()[:MAX_LABEL_CHARS]
+    content = (req.content or "").strip()[:MAX_RESUME_CHARS]
+    if not label:
+        raise HTTPException(status_code=400, detail="Label is required.")
+    if len(content) < 30:
+        raise HTTPException(status_code=400, detail="Resume is too short (min 30 chars).")
+
+    count = await db.resumes.count_documents({"device_id": req.device_id})
+    if count >= MAX_RESUMES:
+        raise HTTPException(status_code=400, detail=f"Resume limit reached ({MAX_RESUMES}). Delete one to add another.")
+
+    resume = SavedResume(device_id=req.device_id, label=label, content=content)
+    await db.resumes.insert_one(json.loads(resume.model_dump_json()))
+    return resume
+
+
+@api_router.get("/resumes/{device_id}", response_model=List[SavedResume])
+async def list_resumes(device_id: str):
+    _validate_device_id(device_id)
+    if not await _device_is_pro(device_id):
+        raise HTTPException(status_code=403, detail="Saved resumes are a Pro feature.")
+    cursor = db.resumes.find({"device_id": device_id}, {"_id": 0}).sort("updated_at", -1)
+    docs = await cursor.to_list(length=MAX_RESUMES)
+    return [SavedResume(**d) for d in docs]
+
+
+@api_router.put("/resumes/{resume_id}", response_model=SavedResume)
+async def update_resume(resume_id: str, req: ResumeUpdateRequest):
+    _validate_device_id(req.device_id)
+    if not await _device_is_pro(req.device_id):
+        raise HTTPException(status_code=403, detail="Saved resumes are a Pro feature.")
+
+    existing = await db.resumes.find_one({"id": resume_id, "device_id": req.device_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Resume not found.")
+
+    update: dict = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if req.label is not None:
+        label = req.label.strip()[:MAX_LABEL_CHARS]
+        if not label:
+            raise HTTPException(status_code=400, detail="Label cannot be empty.")
+        update["label"] = label
+    if req.content is not None:
+        content = req.content.strip()[:MAX_RESUME_CHARS]
+        if len(content) < 30:
+            raise HTTPException(status_code=400, detail="Resume is too short (min 30 chars).")
+        update["content"] = content
+
+    await db.resumes.update_one(
+        {"id": resume_id, "device_id": req.device_id},
+        {"$set": update},
+    )
+    doc = await db.resumes.find_one({"id": resume_id, "device_id": req.device_id}, {"_id": 0})
+    return SavedResume(**doc)
+
+
+@api_router.delete("/resumes/{resume_id}")
+async def delete_resume(resume_id: str, device_id: str):
+    _validate_device_id(device_id)
+    if not await _device_is_pro(device_id):
+        raise HTTPException(status_code=403, detail="Saved resumes are a Pro feature.")
+    res = await db.resumes.delete_one({"id": resume_id, "device_id": device_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Resume not found.")
+    return {"deleted": True}
+
+
+# ===== Dev-only helpers (gated by LANDIT_DEV_MODE env var) =====
+
+LANDIT_DEV_MODE = os.environ.get("LANDIT_DEV_MODE", "").lower() in ("1", "true", "yes")
+
+
+class DevPromoteRequest(BaseModel):
+    device_id: str
+    days: int = 30
+
+
+@api_router.post("/dev/promote-to-pro")
+async def dev_promote_to_pro(req: DevPromoteRequest):
+    """Dev-only: instantly mark a device as Pro for `days` days. Disabled in prod."""
+    if not LANDIT_DEV_MODE:
+        raise HTTPException(status_code=404, detail="Not found")
+    _validate_device_id(req.device_id)
+    days = max(1, min(int(req.days or 30), 365))
+    from datetime import timedelta
+    pro_until = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
+    await db.pro_devices.update_one(
+        {"device_id": req.device_id},
+        {"$set": {
+            "device_id": req.device_id,
+            "pro_until": pro_until,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "source": "dev_promote",
+        }},
+        upsert=True,
+    )
+    return {"is_pro": True, "pro_until": pro_until, "device_id": req.device_id}
+
+
+@api_router.post("/dev/revoke-pro")
+async def dev_revoke_pro(req: DevPromoteRequest):
+    """Dev-only: remove Pro from a device."""
+    if not LANDIT_DEV_MODE:
+        raise HTTPException(status_code=404, detail="Not found")
+    _validate_device_id(req.device_id)
+    await db.pro_devices.delete_one({"device_id": req.device_id})
+    return {"is_pro": False, "device_id": req.device_id}
+
+
+@api_router.get("/dev/status")
+async def dev_status():
+    """Tells the frontend whether the dev panel should be exposed."""
+    return {"dev_mode": LANDIT_DEV_MODE}
 
 
 
