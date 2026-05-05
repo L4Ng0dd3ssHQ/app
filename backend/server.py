@@ -258,6 +258,7 @@ async def create_checkout(req: CheckoutCreateRequest, http_request: Request):
     try:
         session = stripe_sdk.checkout.Session.create(
             payment_method_types=["card"],
+            allow_promotion_codes=True,
             line_items=[{
                 "price_data": {
                     "currency": pkg["currency"],
