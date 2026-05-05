@@ -7,7 +7,7 @@ export default function About() {
       <h2 className="text-3xl font-black text-ink mb-4">About</h2>
 
       <div className="rounded-3xl p-6 mb-4 shadow-card text-white"
-           style={{ background: "linear-gradient(135deg, #A67285 0%, #4c333e 50%, #351e28 100%)" }}>
+           style={{ background: "linear-gradient(135deg, #6b3d4a 0%, #4c333e 50%, #351e28 100%)" }}>
         <div className="text-[11px] font-extrabold tracking-[0.3em] opacity-90 mb-2">LANDIT</div>
         <h3 className="text-2xl font-black leading-tight mb-3">One job posting → one clear plan.</h3>
         <p className="text-sm leading-snug text-brand-50/95">

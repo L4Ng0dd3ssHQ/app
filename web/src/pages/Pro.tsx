@@ -45,7 +45,7 @@ export default function Pro() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         <div className="rounded-3xl p-6 lg:p-10 mb-5 lg:mb-0 shadow-card text-white"
-             style={{ background: "linear-gradient(135deg, #A67285 0%, #4c333e 50%, #351e28 100%)" }}>
+             style={{ background: "linear-gradient(135deg, #6b3d4a 0%, #4c333e 50%, #351e28 100%)" }}>
           <div className="text-[11px] font-extrabold tracking-[0.3em] opacity-90 mb-2">LANDIT PRO</div>
           <h1 className="text-3xl lg:text-5xl font-black leading-tight mb-4">
             Land more interviews. <br className="hidden lg:block" />Land them faster.
