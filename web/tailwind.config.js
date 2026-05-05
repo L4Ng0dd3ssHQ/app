@@ -5,14 +5,14 @@ export default {
     extend: {
       colors: {
         brand: {
-          50:  "#F1E6FA",
-          100: "#E5D0F5",
-          200: "#C9A1EA",
-          300: "#A56BD6",
-          500: "#7C2FB8",
-          600: "#641F9A",
-          700: "#4B0F8B",
-          800: "#37056A",
+          50:  "#F5EEF1",
+          100: "#E8D5DC",
+          200: "#C9A3B0",
+          300: "#A67285",
+          500: "#4c333e",
+          600: "#3f2a34",
+          700: "#351e28",
+          800: "#261520",
         },
         ink: "#1A0F2E",
         muted: "#6E6680",
@@ -25,8 +25,8 @@ export default {
         sans: ['"Plus Jakarta Sans"', "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
       },
       boxShadow: {
-        card: "0 4px 14px rgba(75, 15, 139, 0.08)",
-        cardLg: "0 10px 30px rgba(75, 15, 139, 0.12)",
+        card: "0 4px 14px rgba(53, 30, 40, 0.08)",
+        cardLg: "0 10px 30px rgba(53, 30, 40, 0.12)",
       },
       borderRadius: {
         "2xl": "1rem",
