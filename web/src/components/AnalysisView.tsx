@@ -80,6 +80,19 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function formatAnalysisText(data: Analysis): string {
+  const lines: string[] = [];
+  lines.push(`JOB: ${data.job_title}`);
+  if (data.match_score > 0) lines.push(`MATCH SCORE: ${data.match_score}/100 — ${scoreLabel(data.match_score)}`);
+  if (data.summary) lines.push(`\nSUMMARY\n${data.summary}`);
+  if (data.required_skills.length) lines.push(`\nREQUIRED SKILLS\n${data.required_skills.join(", ")}`);
+  if (data.preferred_skills.length) lines.push(`\nPREFERRED SKILLS\n${data.preferred_skills.join(", ")}`);
+  if (data.missing_skills.length) lines.push(`\nMISSING SKILLS\n${data.missing_skills.join(", ")}`);
+  if (data.suggested_bullets.length) lines.push(`\nRESUME BULLETS\n${data.suggested_bullets.map(b => `• ${b.after}`).join("\n")}`);
+  if (data.focus_guidance.length) lines.push(`\nFOCUS ON\n${data.focus_guidance.map((f, i) => `${i + 1}. ${f}`).join("\n")}`);
+  return lines.join("\n");
+}
+
 export default function AnalysisView({ data }: { data: Analysis }) {
   const sc = data.match_score;
   const pro = isPro();
@@ -109,6 +122,9 @@ export default function AnalysisView({ data }: { data: Analysis }) {
           >
             <Crown size={12} /> PDF
           </Link>
+        )}
+        {pro && (
+          <CopyButton text={formatAnalysisText(data)} />
         )}
       </div>
       {data.summary && <p className="text-sm text-muted leading-snug mb-4">{data.summary}</p>}
