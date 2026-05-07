@@ -32,13 +32,13 @@ export default function Home() {
       {/* May Promo Banner */}
       <Link
         to="/pro"
-        className="flex items-center justify-between gap-2 bg-brand-500 text-white rounded-2xl px-4 py-3 mb-4 shadow-card active:scale-[0.98] transition-transform"
+        className="flex items-center justify-between gap-2 bg-brand-50 text-brand-700 rounded-2xl px-4 py-3 mb-4 shadow-card active:scale-[0.98] transition-transform"
       >
         <div className="flex items-center gap-2">
-          <Zap size={16} className="shrink-0" />
+          <Zap size={16} className="text-brand-700 shrink-0" />
           <span className="text-xs font-extrabold tracking-wide">🎉 May Deal — Go Pro for <span className="underline">$1</span>. Unlimited scans, PDF export. No subscription. Use code LANDIT1.</span>
         </div>
-        <ArrowRight size={16} className="shrink-0" />
+        <ArrowRight size={16} className="text-brand-700 shrink-0" />
       </Link>
 
       {/* Hero */}
