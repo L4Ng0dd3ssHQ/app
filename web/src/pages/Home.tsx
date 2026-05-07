@@ -32,7 +32,7 @@ export default function Home() {
       {/* May Promo Banner */}
       <Link
         to="/pro"
-        className="flex items-center justify-between gap-2 bg-brand-300 text-brand-800 rounded-2xl px-4 py-3 mb-4 shadow-card active:scale-[0.98] transition-transform"
+        className="flex items-center justify-between gap-2 bg-brand-200 text-brand-700 rounded-2xl px-4 py-3 mb-4 shadow-card active:scale-[0.98] transition-transform"
       >
         <div className="flex items-center gap-2">
           <Zap size={16} className="text-brand-700 shrink-0" />
@@ -43,7 +43,7 @@ export default function Home() {
 
       {/* Hero */}
       <div className="rounded-3xl p-6 mb-4 shadow-card text-white relative overflow-hidden"
-           style={{ background: "linear-gradient(135deg, #7a4255 0%, #351e28 100%)" }}>
+           style={{ background: "linear-gradient(135deg, #9B4FD4 0%, #7C2FB8 100%)" }}>
         <div className="text-[11px] font-extrabold tracking-[0.3em] opacity-90 mb-3">LAND IT.</div>
         <h1 className="text-3xl font-black leading-tight mb-3">
           Land the interview.<br />Skip the guesswork.
