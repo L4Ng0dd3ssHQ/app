@@ -36,7 +36,7 @@ export default function Home() {
       >
         <div className="flex items-center gap-2">
           <Zap size={16} className="text-brand-700 shrink-0" />
-          <span className="text-xs font-extrabold tracking-wide">🎉 May Deal — Go Pro for <span className="underline">$1</span>. Unlimited scans, PDF export. No subscription. Use code LANDIT1.</span>
+          <span className="text-xs font-extrabold tracking-wide">🎉 May Deal — Go Pro for <span className="underline">$1</span>. Unlimited scans, PDF export, and save your resumes for quick access. No subscription. Use code LANDIT1.</span>
         </div>
         <ArrowRight size={16} className="text-brand-700 shrink-0" />
       </Link>
