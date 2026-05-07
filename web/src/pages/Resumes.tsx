@@ -250,10 +250,7 @@ export default function Resumes() {
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <button
-                        onClick={async () => {
-                          await navigator.clipboard.writeText(r.content);
-                          navigate("/analyze");
-                        }}
+                        onClick={() => navigate("/analyze", { state: { resume: r.content } })}
                         title="Use in analysis"
                         className="w-9 h-9 rounded-full hover:bg-brand-50 flex items-center justify-center text-muted hover:text-brand-700"
                       >
