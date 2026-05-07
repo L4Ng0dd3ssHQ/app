@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Crown, FileText, Loader2, Plus, Trash2, Pencil, Save, X } from "lucide-react";
+import { ArrowLeft, Crown, FileText, Loader2, Plus, Trash2, Pencil, Save, X, Zap } from "lucide-react";
 import { isPro, getDeviceId } from "../storage";
 import { listResumes, createResume, updateResume, deleteResume } from "../api";
 import type { SavedResume } from "../types";
@@ -249,6 +249,16 @@ export default function Resumes() {
                       <p className="text-sm text-muted leading-snug mt-2 line-clamp-2">{r.content.slice(0, 220)}{r.content.length > 220 ? "\u2026" : ""}</p>
                     </div>
                     <div className="flex flex-col gap-1.5">
+                      <button
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(r.content);
+                          navigate("/analyze");
+                        }}
+                        title="Use in analysis"
+                        className="w-9 h-9 rounded-full hover:bg-brand-50 flex items-center justify-center text-muted hover:text-brand-700"
+                      >
+                        <Zap size={16} />
+                      </button>
                       <button onClick={() => startEdit(r)} title="Edit" className="w-9 h-9 rounded-full hover:bg-brand-50 flex items-center justify-center text-muted hover:text-brand-700">
                         <Pencil size={16} />
                       </button>
