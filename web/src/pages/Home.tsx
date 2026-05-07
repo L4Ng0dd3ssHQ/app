@@ -43,7 +43,7 @@ export default function Home() {
 
       {/* Hero */}
       <div className="rounded-3xl p-6 mb-4 shadow-card text-white relative overflow-hidden"
-           style={{ background: "linear-gradient(135deg, #7a4255 0%, #351e28 100%))" }}>
+           style={{ background: "linear-gradient(135deg, #7a4255 0%, #351e28 100%)" }}>
         <div className="text-[11px] font-extrabold tracking-[0.3em] opacity-90 mb-3">LAND IT.</div>
         <h1 className="text-3xl font-black leading-tight mb-3">
           Land the interview.<br />Skip the guesswork.
