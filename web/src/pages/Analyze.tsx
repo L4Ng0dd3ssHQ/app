@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { Sparkles, Zap, ArrowLeft, Loader2, Crown } from "lucide-react";
 import { DAILY_LIMIT, incrementQuota, isPro, quotaStatus, saveAnalysis } from "../storage";
 import { analyzeJob } from "../api";
@@ -9,6 +9,7 @@ import { track } from "../analytics";
 
 export default function Analyze() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [jd, setJd] = useState("");
   const [resume, setResume] = useState("");
   const [loading, setLoading] = useState(false);
@@ -20,6 +21,8 @@ export default function Analyze() {
   useEffect(() => {
     setRemaining(quotaStatus().remaining);
     setPro(isPro());
+    const state = location.state as { resume?: string } | null;
+    if (state?.resume) setResume(state.resume);
   }, []);
 
   const onAnalyze = async () => {

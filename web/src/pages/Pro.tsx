@@ -45,7 +45,7 @@ export default function Pro() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         <div className="rounded-3xl p-6 lg:p-10 mb-5 lg:mb-0 shadow-card text-white"
-             style={{ background: "linear-gradient(135deg, #6b3d4a 0%, #4c333e 50%, #351e28 100%)" }}>
+             style={{ background: "linear-gradient(135deg, #9B4FD4 0%, #7C2FB8 100%)" }}>
           <div className="text-[11px] font-extrabold tracking-[0.3em] opacity-90 mb-2">LANDIT PRO</div>
           <h1 className="text-3xl lg:text-5xl font-black leading-tight mb-4">
             Land more interviews. <br className="hidden lg:block" />Land them faster.
@@ -54,7 +54,7 @@ export default function Pro() {
             Drop the 3/day limit, save your resume, track every application, and get every analysis in seconds.
           </p>
           <div className="flex items-baseline gap-2 mb-2">
-            <div className="text-5xl font-black">$7</div>
+            <div className="text-5xl font-black">$1 May Deal with code LANDIT1</div>
             <div className="text-sm text-brand-50/90">/ 30 days</div>
           </div>
           <div className="text-[12px] text-brand-50/80 mb-6">One-time charge. Auto-renews never.</div>
@@ -74,7 +74,7 @@ export default function Pro() {
               className="inline-flex items-center gap-2 bg-white text-brand-700 font-black tracking-wider text-sm px-6 py-3.5 rounded-xl active:scale-95 transition disabled:opacity-70"
             >
               {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-              {loading ? "OPENING CHECKOUT…" : "GO PRO — $7"}
+              {loading ? "OPENING CHECKOUT…" : "GO PRO — $1 THIS MONTH Code LANDIT1"}
             </button>
           )}
           {error && <div className="text-sm text-red-200 bg-red-900/30 rounded p-2 mt-3">{error}</div>}
