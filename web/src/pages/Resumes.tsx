@@ -115,10 +115,10 @@ export default function Resumes() {
           </div>
           <h2 className="text-2xl lg:text-3xl font-black text-ink mb-2">Saved Resumes is a Pro feature</h2>
           <p className="text-sm text-muted leading-snug max-w-md mx-auto mb-5">
-            Save up to 25 versions of your resume and one-click reuse them on every analysis.
+            Save up to 25 versions of your resume and one-click reuse them on every analysis. Use code <span className="font-black text-brand-500">LANDIT1</span> for $1 this May.
           </p>
           <Link to="/pro" data-testid="resumes-upgrade-btn" className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-black tracking-wider text-sm px-6 py-3 rounded-xl">
-            <Crown size={16} /> GO PRO — $7
+            <Crown size={16} /> GO PRO — $1 THIS MONTH
           </Link>
         </div>
       </div>
