@@ -32,7 +32,7 @@ export default function Home() {
       {/* May Promo Banner */}
       <Link
         to="/pro"
-        className="flex items-center justify-between gap-2 bg-brand-50 text-brand-700 rounded-2xl px-4 py-3 mb-4 shadow-card active:scale-[0.98] transition-transform"
+        className="flex items-center justify-between gap-2 bg-brand-50 text-brand-300 rounded-2xl px-4 py-3 mb-4 shadow-card active:scale-[0.98] transition-transform"
       >
         <div className="flex items-center gap-2">
           <Zap size={16} className="text-brand-700 shrink-0" />
