@@ -30,7 +30,7 @@ LandIt is a single-purpose mobile app (Expo / React Native) that turns any job p
 | Storage | `@react-native-async-storage/async-storage` (device-local) |
 | Backend | FastAPI, Uvicorn |
 | DB | MongoDB (via Motor) |
-| AI | OpenAI **GPT-5.2** via `emergentintegrations` + Emergent Universal LLM Key |
+| AI | OpenAI **GPT-5.2** |
 
 ---
 
@@ -41,7 +41,7 @@ LandIt is a single-purpose mobile app (Expo / React Native) that turns any job p
 ├── backend/
 │   ├── server.py           # FastAPI app + /api/analyze endpoint
 │   ├── requirements.txt
-│   └── .env                # MONGO_URL, DB_NAME, EMERGENT_LLM_KEY
+│   └── .env                # MONGO_URL, DB_NAME
 ├── frontend/
 │   ├── app/
 │   │   ├── _layout.tsx           # Root stack
