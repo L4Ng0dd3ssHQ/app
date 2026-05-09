@@ -74,7 +74,7 @@ export default function About() {
           Our team put together practical guides covering AI-powered resume optimization, career pivoting,
           and interview prep — designed for real job seekers, not just buzzwords.
         </p>
-        <a href="https://landitapp.gumroad.com/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-black tracking-wider text-sm px-5 py-3 rounded-xl">
+        <a href="https://landitapp.myshopify.com/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-black tracking-wider text-sm px-5 py-3 rounded-xl">
           Browse Resources →
         </a>
       </div>
