@@ -201,21 +201,45 @@ export default function AnalysisView({ data }: { data: Analysis }) {
       {/* Bullets */}
       {data.suggested_bullets.length > 0 && (
         <Section icon={PenSquare} title="Resume Bullet Suggestions" testId="bullets-section">
-          {data.suggested_bullets.map((b, i) => (
-            <div key={i} data-testid={`bullet-${i}`} className="bg-brand-50/70 rounded-xl p-3 mb-2 last:mb-0">
-              {b.before && (
-                <>
-                  <div className="text-[10px] font-extrabold tracking-widest text-bad">BEFORE</div>
-                  <div className="text-[13px] text-muted italic mt-1 mb-2">{b.before}</div>
-                </>
-              )}
-              <div className="flex items-center justify-between">
-                <div className="text-[10px] font-extrabold tracking-widest text-good">AFTER</div>
-                <CopyButton text={b.after} />
+          {pro ? (
+            data.suggested_bullets.map((b, i) => (
+              <div key={i} data-testid={`bullet-${i}`} className="bg-brand-50/70 rounded-xl p-3 mb-2 last:mb-0">
+                {b.before && (
+                  <>
+                    <div className="text-[10px] font-extrabold tracking-widest text-bad">BEFORE</div>
+                    <div className="text-[13px] text-muted italic mt-1 mb-2">{b.before}</div>
+                  </>
+                )}
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] font-extrabold tracking-widest text-good">AFTER</div>
+                  <CopyButton text={b.after} />
+                </div>
+                <div className="text-[14px] text-ink font-semibold leading-relaxed mt-1">{b.after}</div>
               </div>
-              <div className="text-[14px] text-ink font-semibold leading-relaxed mt-1">{b.after}</div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <>
+              <div className="relative">
+                <div className="bg-brand-50/70 rounded-xl p-3 mb-2 blur-sm pointer-events-none select-none">
+                  <div className="text-[10px] font-extrabold tracking-widest text-good">AFTER</div>
+                  <div className="text-[14px] text-ink font-semibold leading-relaxed mt-1">
+                    Spearheaded cross-functional initiatives resulting in 40% improvement in delivery timelines...
+                  </div>
+                </div>
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 rounded-xl">
+                  <Crown size={20} className="text-brand-500 mb-2" />
+                  <div className="text-sm font-extrabold text-ink mb-1">Unlock Resume Bullets</div>
+                  <div className="text-xs text-muted mb-3">Get copy-paste ready bullets tailored to this job</div>
+                  <Link
+                    to="/pro"
+                    className="flex items-center gap-1.5 bg-brand-500 text-white font-black text-xs px-4 py-2 rounded-full"
+                  >
+                    Go Pro — $1 this May
+                  </Link>
+                </div>
+              </div>
+            </>
+          )}
         </Section>
       )}
 
