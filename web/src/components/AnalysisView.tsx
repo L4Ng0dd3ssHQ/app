@@ -194,7 +194,25 @@ export default function AnalysisView({ data }: { data: Analysis }) {
       {/* Missing */}
       {data.has_resume && data.missing_skills.length > 0 && (
         <Section icon={AlertCircle} title="Missing Skills" testId="missing-section">
-          <div>{data.missing_skills.map((s, i) => <Pill key={i} text={s} tone="red" />)}</div>
+          {pro ? (
+            <div>{data.missing_skills.map((s, i) => <Pill key={i} text={s} tone="red" />)}</div>
+          ) : (
+            <div className="relative">
+              <div className="blur-sm pointer-events-none select-none">
+                <Pill text="Communication" tone="red" />
+                <Pill text="Project Management" tone="red" />
+                <Pill text="Data Analysis" tone="red" />
+              </div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 rounded-xl">
+                <Crown size={20} className="text-brand-500 mb-2" />
+                <div className="text-sm font-extrabold text-ink mb-1">See Your Skill Gaps</div>
+                <div className="text-xs text-muted mb-3">Find out exactly what's missing from your resume</div>
+                <Link to="/pro" className="flex items-center gap-1.5 bg-brand-500 text-white font-black text-xs px-4 py-2 rounded-full">
+                  Go Pro — $1 this May
+                </Link>
+              </div>
+            </div>
+          )}
         </Section>
       )}
 
@@ -242,16 +260,38 @@ export default function AnalysisView({ data }: { data: Analysis }) {
           )}
         </Section>
       )}
-
       {/* Focus */}
       {data.focus_guidance.length > 0 && (
         <Section icon={Flag} title="What To Focus On" testId="focus-section">
-          {data.focus_guidance.map((f, i) => (
-            <div key={i} className="flex items-start gap-3 mb-2 last:mb-0">
-              <div className="w-6 h-6 rounded-full bg-brand-500 text-white text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</div>
-              <div className="flex-1 text-sm text-ink leading-snug">{f}</div>
+          {pro ? (
+            data.focus_guidance.map((f, i) => (
+              <div key={i} className="flex items-start gap-3 mb-2 last:mb-0">
+                <div className="w-6 h-6 rounded-full bg-brand-500 text-white text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</div>
+                <div className="flex-1 text-sm text-ink leading-snug">{f}</div>
+              </div>
+            ))
+          ) : (
+            <div className="relative">
+              <div className="blur-sm pointer-events-none select-none">
+                <div className="flex items-start gap-3 mb-2">
+                  <div className="w-6 h-6 rounded-full bg-brand-500 text-white text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5">1</div>
+                  <div className="flex-1 text-sm text-ink leading-snug">Highlight your leadership experience in previous roles...</div>
+                </div>
+                <div className="flex items-start gap-3 mb-2">
+                  <div className="w-6 h-6 rounded-full bg-brand-500 text-white text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5">2</div>
+                  <div className="flex-1 text-sm text-ink leading-snug">Add quantifiable metrics to your achievements...</div>
+                </div>
+              </div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/60 rounded-xl">
+                <Crown size={20} className="text-brand-500 mb-2" />
+                <div className="text-sm font-extrabold text-ink mb-1">Unlock Your Action Plan</div>
+                <div className="text-xs text-muted mb-3">Get a personalized list of exactly what to fix</div>
+                <Link to="/pro" className="flex items-center gap-1.5 bg-brand-500 text-white font-black text-xs px-4 py-2 rounded-full">
+                  Go Pro — $1 this May
+                </Link>
+              </div>
             </div>
-          ))}
+          )}
         </Section>
       )}
     </div>
