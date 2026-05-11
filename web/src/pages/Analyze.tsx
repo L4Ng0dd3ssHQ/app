@@ -5,6 +5,7 @@ import { DAILY_LIMIT, incrementQuota, isPro, quotaStatus, saveAnalysis } from ".
 import { analyzeJob } from "../api";
 import type { Analysis } from "../types";
 import AnalysisView from "../components/AnalysisView";
+import ResumeFileInput from "../components/ResumeFileInput";
 import { track } from "../analytics";
 
 export default function Analyze() {
@@ -131,6 +132,18 @@ export default function Analyze() {
         <div className="flex items-center justify-between mb-2">
           <label className="text-sm font-extrabold text-ink">Your Resume</label>
           <span className="text-[10px] font-extrabold tracking-widest text-muted">OPTIONAL</span>
+        </div>
+        <ResumeFileInput
+          disabled={loading}
+          onParsed={(r) => {
+            setResume(r.text);
+            track("resume_file_parsed", { format: r.format, chars: r.chars });
+          }}
+        />
+        <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-muted my-2">
+          <div className="h-px bg-brand-100 flex-1" />
+          <span>OR PASTE BELOW</span>
+          <div className="h-px bg-brand-100 flex-1" />
         </div>
         <textarea
           data-testid="resume-input"

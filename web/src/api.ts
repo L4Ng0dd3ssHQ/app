@@ -89,3 +89,26 @@ export async function deleteResume(resumeId: string, deviceId: string): Promise<
   });
   return asJson<{ deleted: boolean }>(res);
 }
+
+export async function getDevStatus(): Promise<{ dev_mode: boolean }> {
+  const res = await fetch(`${BACKEND_URL}/api/dev/status`);
+  return asJson<{ dev_mode: boolean }>(res);
+}
+
+export async function devPromoteToPro(deviceId: string, days = 30): Promise<{ is_pro: boolean; pro_until: string; device_id: string }> {
+  const res = await fetch(`${BACKEND_URL}/api/dev/promote-to-pro`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_id: deviceId, days }),
+  });
+  return asJson<{ is_pro: boolean; pro_until: string; device_id: string }>(res);
+}
+
+export async function devRevokePro(deviceId: string): Promise<{ is_pro: boolean; device_id: string }> {
+  const res = await fetch(`${BACKEND_URL}/api/dev/revoke-pro`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_id: deviceId, days: 30 }),
+  });
+  return asJson<{ is_pro: boolean; device_id: string }>(res);
+}
