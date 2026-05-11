@@ -1,4 +1,4 @@
-import type { Analysis } from "./types";
+import type { Analysis, JobStatus } from "./types";
 
 const HISTORY_KEY = "landit.history.v1";
 const QUOTA_KEY = "landit.quota.v1";
