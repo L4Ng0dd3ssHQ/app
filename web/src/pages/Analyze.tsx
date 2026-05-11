@@ -33,12 +33,14 @@ export default function Analyze() {
       return;
     }
     track("analyze_clicked", { has_resume: !!resume.trim(), jd_chars: jd.length });
+    if (!pro) {
       const q = quotaStatus();
       if (!q.allowed) {
         setError(`You've used your ${DAILY_LIMIT} free analyses today. Upgrade to Pro for unlimited.`);
         track("quota_blocked");
         return;
       }
+    }
     setLoading(true);
     try {
       const data = await analyzeJob(jd, resume);

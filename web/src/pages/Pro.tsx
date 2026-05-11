@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Check, Loader2, Sparkles, ArrowLeft } from "lucide-react";
-import { createCheckout } from "../api";
-import { getDeviceId, getProState } from "../storage";
+import { Check, Loader2, Sparkles, ArrowLeft, KeyRound } from "lucide-react";
+import { createCheckout, restorePro } from "../api";
+import { getDeviceId, getProState, setProState, type ProState } from "../storage";
 import { track } from "../analytics";
 
 const FEATURES = [
@@ -16,8 +16,11 @@ const FEATURES = [
 export default function Pro() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreCode, setRestoreCode] = useState("");
+  const [restoreMsg, setRestoreMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const pro = getProState();
+  const [pro, setPro] = useState<ProState>(() => getProState());
 
   const onCheckout = async () => {
     setError(null);
@@ -31,6 +34,30 @@ export default function Pro() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start checkout. Try again.");
       setLoading(false);
+    }
+  };
+
+  const onRestore = async () => {
+    setError(null);
+    setRestoreMsg(null);
+    const code = restoreCode.trim();
+    if (!code) {
+      setError("Enter your restore code.");
+      return;
+    }
+    setRestoring(true);
+    track("pro_restore_started");
+    try {
+      const restored = await restorePro(code, getDeviceId());
+      setProState({ is_pro: true, pro_until: restored.pro_until });
+      setPro({ is_pro: true, pro_until: restored.pro_until });
+      setRestoreMsg(`Pro restored on this device (${restored.devices_used}/${restored.device_limit} devices used).`);
+      track("pro_restore_succeeded", { devices_used: restored.devices_used });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not restore Pro. Check the code and try again.");
+      track("pro_restore_failed");
+    } finally {
+      setRestoring(false);
     }
   };
 
@@ -78,8 +105,10 @@ export default function Pro() {
             </button>
           )}
           {error && <div className="text-sm text-red-200 bg-red-900/30 rounded p-2 mt-3">{error}</div>}
+          {restoreMsg && <div className="text-sm text-emerald-100 bg-emerald-900/30 rounded p-2 mt-3">{restoreMsg}</div>}
         </div>
 
+        <div className="space-y-4">
         <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-card">
           <div className="text-[11px] font-extrabold tracking-[0.15em] text-muted mb-3">EVERYTHING IN PRO</div>
           <ul className="space-y-3">
@@ -98,6 +127,35 @@ export default function Pro() {
               Pro active until {new Date(pro.pro_until).toLocaleDateString()}
             </div>
           )}
+        </div>
+        {!pro.is_pro && (
+          <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-card" data-testid="restore-pro-panel">
+            <div className="flex items-center gap-2 mb-2">
+              <KeyRound size={18} className="text-brand-500" />
+              <div className="text-sm font-extrabold text-ink">Restore Pro</div>
+            </div>
+            <p className="text-xs text-muted leading-snug mb-3">
+              Bought Pro on another device? Enter your restore code to unlock this browser too.
+            </p>
+            <input
+              value={restoreCode}
+              onChange={(e) => setRestoreCode(e.target.value.toUpperCase())}
+              placeholder="LANDIT-ABCD-1234"
+              data-testid="restore-code-input"
+              className="w-full bg-brand-50/50 rounded-xl p-3 text-sm font-bold text-ink placeholder-muted/70 outline-none focus:ring-2 focus:ring-brand-300 mb-3"
+            />
+            <button
+              type="button"
+              onClick={onRestore}
+              disabled={restoring}
+              data-testid="restore-pro-btn"
+              className="w-full flex items-center justify-center gap-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-70 text-white font-black tracking-wider text-sm px-5 py-3 rounded-xl"
+            >
+              {restoring ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
+              {restoring ? "RESTORING..." : "RESTORE PRO"}
+            </button>
+          </div>
+        )}
         </div>
       </div>
     </div>
