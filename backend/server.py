@@ -6,6 +6,9 @@ import os
 import logging
 import json
 import re
+import hmac
+import hashlib
+import secrets
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
@@ -34,6 +37,8 @@ PRO_PACKAGES = {
     "pro_monthly": {"amount": 7.00, "currency": "usd", "label": "LandIt Pro · 30-day pass"},
 }
 PRO_DURATION_DAYS = 30
+RESTORE_CODE_DEVICE_LIMIT = 3
+RESTORE_CODE_SECRET = os.environ.get("RESTORE_CODE_SECRET") or STRIPE_API_KEY or os.environ["DB_NAME"]
 
 
 app = FastAPI()
@@ -135,6 +140,78 @@ def extract_json(text: str) -> dict:
     if start != -1 and end != -1 and end > start:
         return json.loads(text[start:end + 1])
     raise ValueError("Model did not return valid JSON")
+
+
+def _normalize_restore_code(code: str) -> str:
+    compact = re.sub(r"[^A-Za-z0-9]", "", code or "").upper()
+    if compact.startswith("LANDIT"):
+        compact = compact[6:]
+    if len(compact) != 8:
+        raise HTTPException(status_code=400, detail="Enter a valid restore code.")
+    return f"LANDIT-{compact[:4]}-{compact[4:]}"
+
+
+def _restore_code_hash(code: str) -> str:
+    normalized = _normalize_restore_code(code)
+    return hmac.new(
+        RESTORE_CODE_SECRET.encode("utf-8"),
+        normalized.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _generate_restore_code() -> str:
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    raw = "".join(secrets.choice(alphabet) for _ in range(8))
+    return f"LANDIT-{raw[:4]}-{raw[4:]}"
+
+
+async def _grant_pro_device(device_id: str, pro_until: str, source: str = "checkout") -> None:
+    await db.pro_devices.update_one(
+        {"device_id": device_id},
+        {"$set": {
+            "device_id": device_id,
+            "pro_until": pro_until,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "source": source,
+        }},
+        upsert=True,
+    )
+
+
+async def _create_restore_code_for_checkout(session_id: str, device_id: Optional[str], pro_until: Optional[str]) -> Optional[str]:
+    if not device_id or not pro_until:
+        return None
+
+    txn = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0, "restore_code_hash": 1})
+    if txn and txn.get("restore_code_hash"):
+        return None
+
+    for _ in range(5):
+        restore_code = _generate_restore_code()
+        code_hash = _restore_code_hash(restore_code)
+        existing = await db.pro_restore_codes.find_one({"code_hash": code_hash}, {"_id": 1})
+        if existing:
+            continue
+
+        now = datetime.now(timezone.utc).isoformat()
+        await db.pro_restore_codes.insert_one({
+            "code_hash": code_hash,
+            "session_id": session_id,
+            "pro_until": pro_until,
+            "device_ids": [device_id],
+            "device_limit": RESTORE_CODE_DEVICE_LIMIT,
+            "created_at": now,
+            "updated_at": now,
+        })
+        await db.payment_transactions.update_one(
+            {"session_id": session_id},
+            {"$set": {"restore_code_hash": code_hash, "updated_at": now}},
+        )
+        return restore_code
+
+    logger.error("Failed to generate unique restore code")
+    return None
 
 
 
@@ -306,6 +383,7 @@ class CheckoutStatusOut(BaseModel):
     payment_status: str
     fulfilled: bool
     pro_until: Optional[str] = None
+    restore_code: Optional[str] = None
 
 
 
@@ -331,6 +409,7 @@ async def checkout_status(session_id: str):
 
     pro_until = txn.get("pro_until")
     fulfilled = bool(txn.get("fulfilled"))
+    restore_code = None
 
 
     if s_payment_status == "paid" and not fulfilled:
@@ -348,13 +427,11 @@ async def checkout_status(session_id: str):
         )
         device_id = txn.get("device_id")
         if device_id:
-            await db.pro_devices.update_one(
-                {"device_id": device_id},
-                {"$set": {"device_id": device_id, "pro_until": pro_until,
-                          "updated_at": datetime.now(timezone.utc).isoformat()}},
-                upsert=True,
-            )
+            await _grant_pro_device(device_id, pro_until, "checkout")
+            restore_code = await _create_restore_code_for_checkout(session_id, device_id, pro_until)
         fulfilled = True
+    elif fulfilled and pro_until and not txn.get("restore_code_hash"):
+        restore_code = await _create_restore_code_for_checkout(session_id, txn.get("device_id"), pro_until)
 
 
     return CheckoutStatusOut(
@@ -363,6 +440,7 @@ async def checkout_status(session_id: str):
         payment_status=s_payment_status,
         fulfilled=fulfilled,
         pro_until=pro_until,
+        restore_code=restore_code,
     )
 
 
@@ -401,12 +479,7 @@ async def stripe_webhook(request: Request):
                 )
                 device_id = txn.get("device_id")
                 if device_id:
-                    await db.pro_devices.update_one(
-                        {"device_id": device_id},
-                        {"$set": {"device_id": device_id, "pro_until": pro_until,
-                                  "updated_at": datetime.now(timezone.utc).isoformat()}},
-                        upsert=True,
-                    )
+                    await _grant_pro_device(device_id, pro_until, "stripe_webhook")
     return {"received": True}
 
 
@@ -425,6 +498,54 @@ async def get_pro_status(device_id: str):
         except Exception:
             is_pro = False
     return {"is_pro": is_pro, "pro_until": pro_until}
+
+
+class ProRestoreRequest(BaseModel):
+    restore_code: str
+    device_id: str
+
+
+class ProRestoreResponse(BaseModel):
+    is_pro: bool
+    pro_until: str
+    devices_used: int
+    device_limit: int
+
+
+@api_router.post("/pro/restore", response_model=ProRestoreResponse)
+async def restore_pro(req: ProRestoreRequest):
+    _validate_device_id(req.device_id)
+    code_hash = _restore_code_hash(req.restore_code)
+    doc = await db.pro_restore_codes.find_one({"code_hash": code_hash}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=400, detail="Restore code not found. Check the code and try again.")
+
+    pro_until = doc.get("pro_until")
+    try:
+        expires_at = datetime.fromisoformat(pro_until)
+    except Exception:
+        raise HTTPException(status_code=400, detail="This restore code is invalid.")
+    if expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=403, detail="This restore code has expired.")
+
+    device_ids = list(doc.get("device_ids") or [])
+    device_limit = int(doc.get("device_limit") or RESTORE_CODE_DEVICE_LIMIT)
+    if req.device_id not in device_ids:
+        if len(device_ids) >= device_limit:
+            raise HTTPException(status_code=403, detail=f"This restore code has already been used on {device_limit} devices.")
+        device_ids.append(req.device_id)
+        await db.pro_restore_codes.update_one(
+            {"code_hash": code_hash},
+            {"$set": {"device_ids": device_ids, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        )
+
+    await _grant_pro_device(req.device_id, pro_until, "restore_code")
+    return ProRestoreResponse(
+        is_pro=True,
+        pro_until=pro_until,
+        devices_used=len(device_ids),
+        device_limit=device_limit,
+    )
 
 # ===== Saved Resumes (Pro feature) =====
 

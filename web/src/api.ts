@@ -48,6 +48,7 @@ export type CheckoutStatus = {
   payment_status: string;
   fulfilled: boolean;
   pro_until: string | null;
+  restore_code: string | null;
 };
 
 export async function getCheckoutStatus(sessionId: string): Promise<CheckoutStatus> {
@@ -58,6 +59,22 @@ export async function getCheckoutStatus(sessionId: string): Promise<CheckoutStat
 export async function getProStatus(deviceId: string): Promise<{ is_pro: boolean; pro_until: string | null }> {
   const res = await fetch(`${BACKEND_URL}/api/pro/${encodeURIComponent(deviceId)}`);
   return asJson<{ is_pro: boolean; pro_until: string | null }>(res);
+}
+
+export type RestoreProResult = {
+  is_pro: boolean;
+  pro_until: string;
+  devices_used: number;
+  device_limit: number;
+};
+
+export async function restorePro(restoreCode: string, deviceId: string): Promise<RestoreProResult> {
+  const res = await fetch(`${BACKEND_URL}/api/pro/restore`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ restore_code: restoreCode, device_id: deviceId }),
+  });
+  return asJson<RestoreProResult>(res);
 }
 
 export async function listResumes(deviceId: string): Promise<SavedResume[]> {
