@@ -102,7 +102,7 @@ export default function Home() {
               Skip the guesswork.
             </h1>
             <p className="text-sm lg:text-base leading-relaxed text-brand-50/95 max-w-xl mb-6">
-              Paste a job description, upload your resume, and get a clear fit report with missing skills, stronger bullets, and the next fixes to make.
+              Upload your resume and a job post. LandIt shows your match score, missing keywords, and the exact bullets to change before you apply.
             </p>
           </div>
 
