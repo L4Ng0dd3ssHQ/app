@@ -112,7 +112,7 @@ export default function Home() {
               data-testid="hero-analyze-btn"
               className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black tracking-wider text-sm px-5 py-3.5 rounded-xl active:scale-95 transition-transform"
             >
-              ANALYZE A JOB <ArrowRight size={18} />
+              Check My Resume Fit <ArrowRight size={18} />
             </Link>
             <div className="text-[11px] text-brand-50/80">Free 3/day. Pro removes the cap.</div>
           </div>
