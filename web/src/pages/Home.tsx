@@ -98,8 +98,7 @@ export default function Home() {
             </div>
             <h1 className="text-4xl lg:text-5xl font-black leading-tight mb-4">
               Stop applying with a generic resume.
-              <br />
-              Skip the guesswork.
+              
             </h1>
             <p className="text-sm lg:text-base leading-relaxed text-brand-50/95 max-w-xl mb-6">
               Upload your resume and a job post. LandIt shows your match score, missing keywords, and the exact bullets to change before you apply.
