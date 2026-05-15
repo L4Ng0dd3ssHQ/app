@@ -208,7 +208,7 @@ export default function AnalysisView({ data }: { data: Analysis }) {
                 <div className="text-sm font-extrabold text-ink mb-1">See Your Skill Gaps</div>
                 <div className="text-xs text-muted mb-3">Find out exactly what's missing from your resume</div>
                 <Link to="/pro" className="flex items-center gap-1.5 bg-brand-500 text-white font-black text-xs px-4 py-2 rounded-full">
-                  Go Pro — $1 this May
+                  Go Pro - $1 first week
                 </Link>
               </div>
             </div>
@@ -252,7 +252,7 @@ export default function AnalysisView({ data }: { data: Analysis }) {
                     to="/pro"
                     className="flex items-center gap-1.5 bg-brand-500 text-white font-black text-xs px-4 py-2 rounded-full"
                   >
-                    Go Pro — $1 this May
+                    Go Pro - $1 first week
                   </Link>
                 </div>
               </div>
@@ -287,7 +287,7 @@ export default function AnalysisView({ data }: { data: Analysis }) {
                 <div className="text-sm font-extrabold text-ink mb-1">Unlock Your Action Plan</div>
                 <div className="text-xs text-muted mb-3">Get a personalized list of exactly what to fix</div>
                 <Link to="/pro" className="flex items-center gap-1.5 bg-brand-500 text-white font-black text-xs px-4 py-2 rounded-full">
-                  Go Pro — $1 this May
+                  Go Pro - $1 first week
                 </Link>
               </div>
             </div>
