@@ -99,7 +99,11 @@ export default function Layout() {
         }`}
         data-testid="desktop-sidebar"
       >
-        <div className="flex items-center justify-between gap-3 px-4 py-5">
+        <div
+          className={`flex gap-3 px-4 py-5 ${
+            collapsed ? "flex-col items-center justify-center" : "items-center justify-between"
+          }`}
+        >
           <Logo collapsed={collapsed} />
           <button
             type="button"

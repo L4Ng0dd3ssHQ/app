@@ -1334,7 +1334,7 @@ export default function ResumeWorkspace() {
                 <Search size={25} />
                 Compare a Job Description to Your Resume
               </h2>
-              {needsResumeSource && !hasResumeContent && (
+              {!hasResumeContent && (
                 <div className="mt-5">
                   {resumeSourcePanel}
                   <div className="rounded-lg bg-brand-50 p-3 text-sm font-bold text-muted">
@@ -1342,7 +1342,7 @@ export default function ResumeWorkspace() {
                   </div>
                 </div>
               )}
-              {(!needsResumeSource || hasResumeContent) && (
+              {hasResumeContent && (
                 <>
               <div className="mt-3 inline-flex rounded-lg bg-[#FFF3CF] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-ink">
                 External job search coming soon
@@ -1487,7 +1487,7 @@ export default function ResumeWorkspace() {
             <CoverLetterPreview fields={coverFields} resume={resume} targetTitle={jobTitle || resume.targetTitle} pro={pro} />
           ) : activeTab === "analyzer" ? (
             <RecommendationList analysis={analysis} />
-          ) : needsResumeSource && !hasResumeContent ? (
+          ) : !hasResumeContent ? (
             <div className="rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
               <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Resume needed</div>
               <h2 className="mt-2 text-2xl font-black text-ink">Upload or paste your resume to start</h2>
@@ -1552,7 +1552,7 @@ function ResumePreviewSection({ sectionId, resume, compact }: { sectionId: Resum
   if (sectionId === "summary") {
     return (
       <div className="mt-4" data-section-id="summary">
-        <h3 className={headingClass}>{resume.targetTitle || "Target title missing"}</h3>
+        <h3 className={headingClass}>Professional Summary</h3>
         <p className={`${compact ? "mt-1 text-[6px]" : "mt-2 text-[11px]"} font-normal leading-snug text-black`}>{resume.summary}</p>
       </div>
     );
