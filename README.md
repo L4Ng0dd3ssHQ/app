@@ -138,7 +138,7 @@ uvicorn server:app --host 0.0.0.0 --port 8001 --reload
 cd frontend
 yarn install
 # .env:
-#   EXPO_PUBLIC_BACKEND_URL=http://localhost:8001
+# 
 yarn start
 ```
 Scan the QR code with Expo Go, or press `w` for the web preview.
@@ -152,7 +152,7 @@ Scan the QR code with Expo Go, or press `w` for the web preview.
 |---|---|
 | `MONGO_URL` | MongoDB connection string |
 | `DB_NAME` | Database name (analyses collection auto-created) |
-| `EMERGENT_LLM_KEY` | Emergent Universal Key (powers GPT-5.2 access) |
+| `OPEN_AI` | 
 
 ### `frontend/.env`
 | Var | Description |
