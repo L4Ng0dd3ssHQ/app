@@ -1,263 +1,234 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  AlertCircle,
   ArrowRight,
+  BriefcaseBusiness,
   CheckCircle2,
-  Clock,
-  Crown,
   FileText,
   Gauge,
-  Lightbulb,
+  ListChecks,
   PenLine,
-  ShieldCheck,
+  Quote,
+  Search,
   Sparkles,
-  Target,
-  Upload,
-  Zap,
+  Star,
+  StarHalf,
 } from "lucide-react";
-import { DAILY_LIMIT, loadHistory, quotaStatus } from "../storage";
 
-const previewGaps = ["Azure networking", "Firewall configuration", "Incident response"];
+const skillGaps = ["Azure networking", "Incident response", "Firewall policy"];
 
-const featureCards = [
+const testimonials = [
   {
-    icon: Upload,
-    title: "Upload or Paste",
-    text: "Drop in PDF, DOCX, TXT, or paste your resume by hand.",
-    tone: "bg-brand-50 text-brand-700",
+    name: "K.C.",
+    role: "User",
+    image:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&h=160&q=80",
+    text: "LandIt resume analyzer is super easy to use! It's been a very effective tool for applying to jobs. I like that it gives me a clear score and highlights the specific skills I need to add to my resume. It's helped me feel more confident in my applications.",
   },
   {
-    icon: Target,
-    title: "See The Fit",
-    text: "Get a score, skill match, and the gaps that matter most.",
-    tone: "bg-emerald-50 text-emerald-700",
-  },
-  {
-    icon: PenLine,
-    title: "Fix The Resume",
-    text: "Turn plain bullets into tailored, ready-to-use language.",
-    tone: "bg-amber-50 text-amber-700",
+    name: "C.M.",
+    role: "User",
+    image:
+      "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=160&h=160&q=80",
+    text: "LandIt is useful when you are applying to a lot of jobs and want to keep track of how well your resume matches each one. It helps me tailor my resume for each application and gives me confidence that I'm highlighting the right skills and experience. Good UI and easy to use!",
   },
 ];
 
-export default function Home() {
-  const [remaining, setRemaining] = useState(DAILY_LIMIT);
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    setRemaining(quotaStatus().remaining);
-    setCount(loadHistory().length);
-  }, []);
-
+function Rating() {
   return (
-    <div className="px-4 lg:px-10 pt-6 pb-10" data-testid="home-screen">
-      <header className="flex items-center justify-between gap-3 mb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-2xl bg-brand-500 text-white flex items-center justify-center shadow-card">
-              <Sparkles size={18} />
-            </div>
-            <div className="text-3xl font-black tracking-tight text-ink leading-none">LandIt</div>
-          </div>
-          <div className="text-[10px] font-extrabold text-brand-500 mt-1 tracking-[0.2em]">JOB MATCH ANALYZER</div>
-        </div>
-        <div
-          data-testid="quota-pill"
-          className="flex items-center gap-1.5 bg-white border border-brand-100 px-3 py-2 rounded-full shadow-card"
-        >
-          <Zap size={14} className="text-amber-500" />
-          <span className="text-xs font-bold text-brand-700">{remaining}/{DAILY_LIMIT} left today</span>
-        </div>
-      </header>
+    <div className="flex items-center justify-center gap-1 text-brand-500" aria-label="4.5 out of 5 stars">
+      {[0, 1, 2, 3].map((star) => (
+        <Star key={star} size={16} fill="currentColor" strokeWidth={0} />
+      ))}
+      <StarHalf size={16} fill="currentColor" strokeWidth={0} />
+    </div>
+  );
+}
 
-      <Link
-        to="/pro"
-        className="flex items-center justify-between gap-3 bg-white border border-brand-100 text-ink rounded-2xl px-4 py-3 mb-5 shadow-card active:scale-[0.98] transition-transform"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-700 flex items-center justify-center shrink-0">
-            <Crown size={15} />
+export default function Home() {
+  return (
+    <div className="pb-12" data-testid="home-screen">
+      <section className="grid gap-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:items-center">
+        <div className="max-w-3xl min-w-0">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-brand-100 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-brand-500">
+            <Sparkles size={15} />
+            Resume builder and job search
           </div>
-          <span className="text-xs font-bold leading-snug">
-            May Deal: Go Pro for <span className="text-brand-600 font-black">$1</span>. Unlimited scans, PDF export, saved resumes, and restore codes.
-          </span>
-        </div>
-        <ArrowRight size={16} className="text-brand-700 shrink-0" />
-      </Link>
+          <h1 className="text-4xl font-black leading-[1.05] tracking-tight text-ink sm:text-5xl lg:text-6xl">
+            Land jobs with resumes built for the role.
+          </h1>
+          <p className="mt-5 max-w-2xl text-base leading-8 text-muted sm:text-lg">
+            Build a focused resume, search for roles, and match every posting before you apply. LandIt turns a job description into a clearer application plan.
+          </p>
 
-      <section className="grid lg:grid-cols-[1.02fr_0.98fr] gap-4 lg:gap-6 items-stretch mb-5">
-        <div
-          className="rounded-3xl p-6 lg:p-8 shadow-card text-white relative overflow-hidden min-h-[360px] flex flex-col justify-between"
-          style={{ background: "linear-gradient(135deg, #8B3DCC 0%, #641F9A 58%, #2E174D 100%)" }}
-        >
-          <div>
-            <div className="inline-flex items-center gap-2 bg-white/12 border border-white/20 rounded-full px-3 py-1.5 mb-5">
-              <ShieldCheck size={14} />
-              <span className="text-[11px] font-extrabold tracking-[0.16em]">TAILOR BEFORE YOU APPLY</span>
-            </div>
-            <h1 className="text-4xl lg:text-5xl font-black leading-tight mb-4">
-              Stop applying with a generic resume.
-              
-            </h1>
-            <p className="text-sm lg:text-base leading-relaxed text-brand-50/95 max-w-xl mb-6">
-              Upload your resume and a job post. LandIt shows your match score, missing keywords, and the exact bullets to change before you apply.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="mt-8 grid gap-3 sm:grid-cols-2">
             <Link
-              to="/analyze"
-              data-testid="hero-analyze-btn"
-              className="inline-flex items-center justify-center gap-2 bg-white text-brand-700 font-black tracking-wider text-sm px-5 py-3.5 rounded-xl active:scale-95 transition-transform"
+              to="/resume-builder"
+              data-testid="home-resume-builder-btn"
+              className="group rounded-lg border border-brand-200 bg-brand-500 p-5 text-white shadow-card transition-colors hover:bg-brand-600"
             >
-              CHECK MY RESUME FIT <ArrowRight size={18} />
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-lg bg-white/15 flex items-center justify-center">
+                    <FileText size={22} />
+                  </div>
+                  <div>
+                    <div className="text-lg font-black">Resume Builder</div>
+                    <div className="mt-1 text-sm font-semibold text-brand-50/90">Start, improve, or tailor</div>
+                  </div>
+                </div>
+                <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
+              </div>
             </Link>
-            <div className="text-[11px] text-brand-50/80">Free 3/day. Pro removes the cap.</div>
+
+            <Link
+              to="/job-search"
+              data-testid="home-job-search-btn"
+              className="group rounded-lg border border-[#DDD6E8] bg-white p-5 text-ink shadow-card transition-colors hover:border-brand-200 hover:bg-brand-50"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-lg bg-brand-50 text-brand-500 flex items-center justify-center">
+                    <Search size={22} />
+                  </div>
+                  <div>
+                    <div className="text-lg font-black">Job Search</div>
+                    <div className="mt-1 text-sm font-semibold text-muted">Find, save, and match</div>
+                  </div>
+                </div>
+                <ArrowRight size={20} className="text-brand-500 transition-transform group-hover:translate-x-1" />
+              </div>
+            </Link>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center gap-4 text-sm font-bold text-muted">
+            <Link to="/analyze" className="inline-flex items-center gap-2 text-brand-500 hover:text-brand-600">
+              Match a job description <ArrowRight size={16} />
+            </Link>
+            <span className="hidden h-4 w-px bg-[#DCD6E5] sm:block" />
+            <span>No account needed to start</span>
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-card p-4 lg:p-5 border border-brand-50">
-          <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0 overflow-hidden rounded-lg border border-[#E2DDEA] bg-white p-4 shadow-card lg:p-5">
+          <div className="flex items-start justify-between gap-4 border-b border-[#EEEAF3] pb-4">
             <div>
-              <div className="text-[11px] font-extrabold tracking-[0.15em] text-muted mb-1">SAMPLE REPORT</div>
-              <h2 className="text-xl font-black text-ink">Network Engineer</h2>
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-muted">Application plan</div>
+              <h2 className="mt-2 text-2xl font-black text-ink">Network Engineer</h2>
+              <p className="mt-1 text-sm font-semibold text-muted">Tailored resume preview</p>
             </div>
-            <div className="text-right">
-              <div className="text-4xl font-black text-good leading-none">82</div>
-              <div className="text-[10px] font-extrabold text-good tracking-wider">STRONG FIT</div>
-            </div>
-          </div>
-
-          <div className="h-2 rounded-full bg-brand-50 overflow-hidden mb-4">
-            <div className="h-full w-[82%] bg-good rounded-full" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            <div className="rounded-2xl bg-emerald-50 p-3">
-              <CheckCircle2 size={18} className="text-good mb-2" />
-              <div className="text-xs font-extrabold text-ink">Matched</div>
-              <div className="text-[11px] text-muted mt-0.5">VLANs, DHCP, NAT, Cisco</div>
-            </div>
-            <div className="rounded-2xl bg-red-50 p-3">
-              <AlertCircle size={18} className="text-bad mb-2" />
-              <div className="text-xs font-extrabold text-ink">Missing</div>
-              <div className="text-[11px] text-muted mt-0.5">Cloud networking gaps</div>
+            <div className="rounded-lg bg-brand-50 px-4 py-3 text-right">
+              <div className="text-4xl font-black leading-none text-brand-500">82%</div>
+              <div className="mt-1 text-[11px] font-black uppercase tracking-[0.12em] text-brand-500">Match</div>
             </div>
           </div>
 
-          <div className="mb-4">
-            <div className="text-[11px] font-extrabold tracking-[0.15em] text-muted mb-2">SKILL GAPS</div>
-            <div>
-              {previewGaps.map((gap) => (
-                <span key={gap} className="inline-block bg-red-50 text-red-700 px-3 py-1.5 rounded-full text-[12px] font-semibold mr-2 mb-2">
+          <div className="grid gap-3 py-4 sm:grid-cols-3">
+            <div className="rounded-lg bg-[#F7F5FA] p-3">
+              <Gauge size={20} className="text-brand-500" />
+              <div className="mt-3 text-sm font-black text-ink">Fit score</div>
+              <div className="mt-1 text-xs font-semibold text-muted">See whether the role is worth a tailored apply.</div>
+            </div>
+            <div className="rounded-lg bg-[#F7F5FA] p-3">
+              <ListChecks size={20} className="text-brand-500" />
+              <div className="mt-3 text-sm font-black text-ink">Skill Gaps</div>
+              <div className="mt-1 text-xs font-semibold text-muted">Spot missing language before an ATS does.</div>
+            </div>
+            <div className="rounded-lg bg-[#F7F5FA] p-3">
+              <PenLine size={20} className="text-brand-500" />
+              <div className="mt-3 text-sm font-black text-ink">Better bullets</div>
+              <div className="mt-1 text-xs font-semibold text-muted">Turn experience into job-specific proof.</div>
+            </div>
+          </div>
+
+          <div className="border-t border-[#EEEAF3] pt-4">
+            <div className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-muted">Skill Gaps</div>
+            <div className="flex flex-wrap gap-2">
+              {skillGaps.map((gap) => (
+                <span key={gap} className="rounded-lg bg-brand-50 px-3 py-2 text-xs font-black text-brand-500">
                   {gap}
                 </span>
               ))}
             </div>
           </div>
 
-          <div className="rounded-2xl bg-bg p-3 border border-brand-50">
-            <div className="flex items-center gap-2 text-[11px] font-extrabold tracking-[0.12em] text-brand-700 mb-2">
-              <PenLine size={14} />
-              REWRITTEN BULLET
+          <div className="mt-4 rounded-lg border border-brand-100 bg-brand-50 p-4">
+            <div className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-brand-500">
+              <CheckCircle2 size={15} />
+              Tailored bullet
             </div>
-            <div className="text-[12px] text-muted line-through mb-2">Managed network systems.</div>
-            <div className="text-sm text-ink font-semibold leading-snug bg-white rounded-xl border-l-4 border-brand-500 p-3">
+            <p className="text-sm font-bold leading-6 text-ink">
               Configured VLAN segmentation and DHCP/NAT policies to improve uptime across multi-site network operations.
-            </div>
+            </p>
           </div>
         </div>
       </section>
 
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <div className="bg-white rounded-2xl shadow-card p-4" data-testid="stat-history">
-          <Clock size={22} className="text-brand-500" />
-          <div className="text-3xl font-black text-ink mt-1">{count}</div>
-          <div className="text-xs text-muted font-semibold">Past scans</div>
+      <section className="mt-12" aria-labelledby="testimonials-heading">
+        <div className="mb-6 text-center">
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Testimonials</div>
+          <h2 id="testimonials-heading" className="mt-2 text-3xl font-black tracking-tight text-ink">
+            What LandIt users are saying
+          </h2>
         </div>
-        <div className="bg-white rounded-2xl shadow-card p-4" data-testid="stat-quota">
-          <Zap size={22} className="text-amber-500" />
-          <div className="text-3xl font-black text-ink mt-1">{remaining}</div>
-          <div className="text-xs text-muted font-semibold">Scans left</div>
-        </div>
-        <div className="bg-white rounded-2xl shadow-card p-4">
-          <Gauge size={22} className="text-emerald-600" />
-          <div className="text-3xl font-black text-ink mt-1">10x</div>
-          <div className="text-xs text-muted font-semibold">Faster tailoring</div>
-        </div>
-        <div className="bg-white rounded-2xl shadow-card p-4">
-          <FileText size={22} className="text-brand-500" />
-          <div className="text-3xl font-black text-ink mt-1">ATS</div>
-          <div className="text-xs text-muted font-semibold">Resume ready</div>
-        </div>
-      </section>
 
-      <section className="mb-6">
-        <div className="flex items-end justify-between gap-3 mb-3">
-          <div>
-            <div className="text-[11px] font-extrabold tracking-[0.15em] text-muted mb-1">HOW IT WORKS</div>
-            <h2 className="text-2xl font-black text-ink">From posting to plan</h2>
+        <div className="relative">
+          <div className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 shell-scroll md:grid md:grid-cols-2 md:overflow-visible md:pb-0">
+            {testimonials.map((testimonial) => (
+              <article
+                key={testimonial.name}
+                className="min-w-[82%] snap-center rounded-lg border border-[#E2DDEA] bg-white p-6 text-center shadow-card sm:min-w-[48%] md:min-w-0"
+              >
+                <Quote size={34} className="mx-auto mb-3 text-brand-200" fill="currentColor" strokeWidth={0} />
+                <img
+                  src={testimonial.image}
+                  alt=""
+                  className="mx-auto h-20 w-20 rounded-full border-4 border-brand-50 object-cover"
+                  loading="lazy"
+                />
+                <p className="mx-auto mt-5 max-w-md text-sm font-semibold leading-6 text-muted">{testimonial.text}</p>
+                <div className="mt-5">
+                  <Rating />
+                  <div className="mt-3 text-sm font-black text-ink">{testimonial.name}</div>
+                  <div className="mt-1 text-xs font-bold text-muted">{testimonial.role}</div>
+                </div>
+              </article>
+            ))}
           </div>
-          <Link to="/analyze" className="hidden sm:inline-flex text-xs font-black text-brand-700 items-center gap-1">
-            START <ArrowRight size={14} />
-          </Link>
-        </div>
-        <div className="grid lg:grid-cols-3 gap-3">
-          {featureCards.map(({ icon: Icon, title, text, tone }) => (
-            <div key={title} className="bg-white rounded-2xl shadow-card p-4">
-              <div className={`w-10 h-10 rounded-2xl ${tone} flex items-center justify-center mb-3`}>
-                <Icon size={20} />
-              </div>
-              <div className="font-extrabold text-ink">{title}</div>
-              <p className="text-sm text-muted leading-snug mt-1">{text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid lg:grid-cols-[1fr_0.9fr] gap-3 mb-5">
-        <div className="bg-white rounded-2xl shadow-card p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Lightbulb size={20} className="text-amber-500" />
-            <h3 className="font-black text-ink">Why applicants use it</h3>
-          </div>
-          <div className="space-y-3">
-            {[
-              "Know whether the role is worth your time before applying.",
-              "See exact missing keywords instead of guessing what ATS wants.",
-              "Rewrite resume bullets without starting from a blank page.",
-            ].map((item) => (
-              <div key={item} className="flex items-start gap-2 text-sm text-ink">
-                <CheckCircle2 size={16} className="text-good shrink-0 mt-0.5" />
-                <span>{item}</span>
-              </div>
+          <div className="mt-3 flex justify-center gap-2 md:hidden" aria-hidden="true">
+            {testimonials.map((testimonial) => (
+              <span key={testimonial.name} className="h-2 w-2 rounded-full bg-brand-200" />
             ))}
           </div>
         </div>
-
-        <Link to="/pro" className="bg-brand-500 text-white rounded-2xl shadow-card p-5 flex flex-col justify-between active:scale-[0.99] transition-transform">
-          <div>
-            <div className="flex items-center gap-2 text-brand-50 mb-2">
-              <Crown size={18} />
-              <span className="text-[11px] font-extrabold tracking-[0.16em]">LANDIT PRO</span>
-            </div>
-            <h3 className="text-2xl font-black leading-tight">Unlimited scans when the job hunt gets serious.</h3>
-            <p className="text-sm text-brand-50/90 leading-snug mt-2">Save resumes, export PDFs, restore Pro on up to 3 devices, and keep tailoring without daily caps.</p>
-          </div>
-          <div className="mt-5 inline-flex items-center gap-2 text-sm font-black">
-            VIEW PRO <ArrowRight size={16} />
-          </div>
-        </Link>
       </section>
 
-      <Link
-        to="/analyze"
-        data-testid="start-analyze-btn"
-        className="block w-full text-center bg-ink hover:bg-brand-800 transition-colors text-white font-black tracking-widest text-sm py-4 rounded-xl shadow-card active:scale-[0.98]"
-      >
-        START ANALYZING
-      </Link>
+      <section className="mt-10 grid gap-4 lg:grid-cols-3">
+        {[
+          {
+            icon: FileText,
+            title: "Build around the target role",
+            text: "Start from a blank resume, a template, or the job description that matters most.",
+          },
+          {
+            icon: BriefcaseBusiness,
+            title: "Keep the search connected",
+            text: "Save promising roles and move from posting to tailored resume without losing context.",
+          },
+          {
+            icon: Sparkles,
+            title: "Use the analyzer when it counts",
+            text: "The existing job match tool stays ready for quick resume checks and skill gaps.",
+          },
+        ].map(({ icon: Icon, title, text }) => (
+          <div key={title} className="rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
+            <div className="h-11 w-11 rounded-lg bg-brand-50 text-brand-500 flex items-center justify-center">
+              <Icon size={22} />
+            </div>
+            <h3 className="mt-4 text-lg font-black text-ink">{title}</h3>
+            <p className="mt-2 text-sm font-medium leading-6 text-muted">{text}</p>
+          </div>
+        ))}
+      </section>
     </div>
   );
 }

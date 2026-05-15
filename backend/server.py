@@ -34,9 +34,21 @@ STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
 
 # Server-defined Pro packages (NEVER trust amount from frontend)
 PRO_PACKAGES = {
-    "pro_monthly": {"amount": 7.00, "currency": "usd", "label": "LandIt Pro · 30-day pass"},
+    "pro_weekly": {
+        "amount": 7.00,
+        "currency": "usd",
+        "label": "LandIt Pro - 7-day pass",
+        "duration_days": 7,
+        "stripe_product_id": "prod_US7E2SV4GUrpAh",
+    },
+    "pro_monthly": {
+        "amount": 19.00,
+        "currency": "usd",
+        "label": "LandIt Pro - 30-day pass",
+        "duration_days": 30,
+        "stripe_product_id": "prod_UWX8p62MFivHEF",
+    },
 }
-PRO_DURATION_DAYS = 30
 RESTORE_CODE_DEVICE_LIMIT = 3
 RESTORE_CODE_SECRET = os.environ.get("RESTORE_CODE_SECRET") or STRIPE_API_KEY or os.environ["DB_NAME"]
 
@@ -164,6 +176,13 @@ def _generate_restore_code() -> str:
     alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     raw = "".join(secrets.choice(alphabet) for _ in range(8))
     return f"LANDIT-{raw[:4]}-{raw[4:]}"
+
+
+def _package_duration_days(package_id: Optional[str]) -> int:
+    package = PRO_PACKAGES.get(package_id or "")
+    if not package:
+        return 7
+    return int(package.get("duration_days") or 7)
 
 
 async def _grant_pro_device(device_id: str, pro_until: str, source: str = "checkout") -> None:
@@ -339,7 +358,7 @@ async def create_checkout(req: CheckoutCreateRequest, http_request: Request):
             line_items=[{
                 "price_data": {
                     "currency": pkg["currency"],
-                    "product_data": {"name": pkg["label"]},
+                    "product": pkg["stripe_product_id"],
                     "unit_amount": int(pkg["amount"] * 100),
                 },
                 "quantity": 1,
@@ -362,6 +381,7 @@ async def create_checkout(req: CheckoutCreateRequest, http_request: Request):
         "session_id": session.id,
         "device_id": req.device_id,
         "package_id": req.package_id,
+        "duration_days": int(pkg["duration_days"]),
         "amount": float(pkg["amount"]),
         "currency": pkg["currency"],
         "payment_status": "initiated",
@@ -413,7 +433,8 @@ async def checkout_status(session_id: str):
 
 
     if s_payment_status == "paid" and not fulfilled:
-        pro_until_dt = datetime.now(timezone.utc) + timedelta(days=PRO_DURATION_DAYS)
+        duration_days = int(txn.get("duration_days") or _package_duration_days(txn.get("package_id")))
+        pro_until_dt = datetime.now(timezone.utc) + timedelta(days=duration_days)
         pro_until = pro_until_dt.isoformat()
         await db.payment_transactions.update_one(
             {"session_id": session_id, "fulfilled": {"$ne": True}},
@@ -466,7 +487,8 @@ async def stripe_webhook(request: Request):
             session_id = session["id"]
             txn = await db.payment_transactions.find_one({"session_id": session_id})
             if txn and not txn.get("fulfilled"):
-                pro_until = (datetime.now(timezone.utc) + timedelta(days=PRO_DURATION_DAYS)).isoformat()
+                duration_days = int(txn.get("duration_days") or _package_duration_days(txn.get("package_id")))
+                pro_until = (datetime.now(timezone.utc) + timedelta(days=duration_days)).isoformat()
                 await db.payment_transactions.update_one(
                     {"session_id": session_id, "fulfilled": {"$ne": True}},
                     {"$set": {
