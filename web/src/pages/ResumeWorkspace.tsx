@@ -33,7 +33,7 @@ type BuilderTab = "content" | "designer" | "analyzer" | "matcher" | "cover";
 
 const tabs: Array<{ id: BuilderTab; label: string; icon: typeof FileText; badge?: string }> = [
   { id: "content", label: "Editor", icon: FileText },
-  { id: "designer", label: "Designer", icon: Palette },
+  { id: "designer", label: "Layout", icon: Palette },
   { id: "analyzer", label: "Analyzer", icon: Sparkles },
   { id: "matcher", label: "Job Matcher", icon: BriefcaseBusiness, badge: "!" },
   { id: "cover", label: "Cover Letter", icon: ScrollText },
