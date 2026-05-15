@@ -51,7 +51,7 @@ const resumeTemplates = [
       "High-availability software engineer with deep experience in Python, Go, Kubernetes, observability, and developer experience. Proven record delivering reliable systems at scale.",
     accent: "bg-brand-500",
     layout: "minimal",
-    role: "Staff Software Engineer",
+    role: "Customizable Resume Headline",
   },
   {
     id: "tech",
@@ -64,7 +64,7 @@ const resumeTemplates = [
       "Staff software engineer specializing in distributed systems, cloud architecture, CI/CD, and platform reliability for high-traffic products.",
     accent: "bg-emerald-600",
     layout: "technical",
-    role: "Senior Software Engineer | Full-Stack | Cloud Infrastructure",
+    role: "Customizable Resume Headline",
   },
   {
     id: "creative",
@@ -77,7 +77,7 @@ const resumeTemplates = [
       "Award-winning creative director with 10 years shaping brand identity and visual storytelling for global consumer, tech, and nonprofit clients.",
     accent: "bg-[#8B1E56]",
     layout: "creative",
-    role: "Creative Director | Brand Strategy | Art Direction",
+    role: "Customizable Resume Headline",
   },
   {
     id: "career-pivot",
@@ -90,7 +90,7 @@ const resumeTemplates = [
       "Finance professional with 8 years of analysis, reporting, and modeling experience, now transitioning into data analytics with Python, SQL, and Power BI projects.",
     accent: "bg-amber-600",
     layout: "pivot",
-    role: "Transitioning Finance Professional | Aspiring Data Analyst | Python & SQL",
+    role: "Customizable Resume Headline",
   },
   {
     id: "entry-level",
@@ -103,7 +103,7 @@ const resumeTemplates = [
       "Recent marketing graduate with hands-on experience in content creation, social media management, and brand strategy through internships and campus leadership.",
     accent: "bg-sky-600",
     layout: "entry",
-    role: "Marketing Graduate | Content Strategy | Social Media & Brand",
+    role: "Customizable Resume Headline",
   },
 ];
 
@@ -187,7 +187,7 @@ const baseResumeData: ResumeData = {
   templateId: "minimalist",
   candidateName: "Jordan M. Rivera",
   contact: "jordan.rivera@email.com | (555) 867-5309 | linkedin.com/in/jordanrivera | github.com/jrivera | Austin, TX",
-  role: "Staff Software Engineer",
+  role: "Customizable Resume Headline",
   targetTitle: "Staff Software Engineer",
   summary:
     "Proven track record delivering high-availability services handling 10M+ daily requests. Deep expertise in Python, Go, and Kubernetes. Passionate about developer experience, observability, and clean architecture.",
@@ -1408,7 +1408,7 @@ export default function ResumeWorkspace() {
                   <div className="mt-3 grid gap-3">
                     <input value={resume.candidateName} onChange={(e) => updateResume("candidateName", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Name" />
                     <input value={resume.contact} onChange={(e) => updateResume("contact", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Contact line" />
-                    <input value={resume.role} onChange={(e) => updateResume("role", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Resume headline" />
+                    <input value={resume.role} onChange={(e) => updateResume("role", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Custom headline" />
                   </div>
                 </details>
                 <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3" open>
