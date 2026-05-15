@@ -1134,8 +1134,8 @@ export default function ResumeWorkspace() {
         </div>
       )}
 
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.8fr)]">
-        <section className="min-w-0 overflow-hidden rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
+      <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)] xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,0.8fr)]">
+        <section className="min-w-0 overflow-hidden rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card md:max-h-[calc(100vh-220px)] md:overflow-y-auto shell-scroll">
           {activeTab === "designer" ? (
             <div>
               <div className="mb-5 flex flex-wrap gap-5 border-b border-[#EEEAF3] pb-4 text-sm font-black text-muted">
@@ -1474,7 +1474,7 @@ export default function ResumeWorkspace() {
           )}
         </section>
 
-        <aside className="min-w-0 overflow-hidden">
+        <aside className="min-w-0 overflow-hidden md:max-h-[calc(100vh-220px)] md:overflow-y-auto shell-scroll">
           {showPaywall ? (
             <PaywallBlock
               context={activeTab === "matcher" ? "matcher" : "analyzer"}
@@ -1524,7 +1524,6 @@ function ResumePreview({
       style={{
         aspectRatio: "8.5 / 11",
         fontFamily: "Arial, Helvetica, sans-serif",
-        maxHeight: compact ? undefined : "calc(100vh - 220px)",
       }}
       data-testid="resume-page-preview"
     >
