@@ -183,7 +183,7 @@ export default function Layout() {
           collapsed ? "lg:pl-[88px]" : "lg:pl-[280px]"
         }`}
       >
-        <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
+        <div className="mx-auto w-full max-w-[1440px] min-w-0 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
           <Outlet />
           <DevPanel />
         </div>

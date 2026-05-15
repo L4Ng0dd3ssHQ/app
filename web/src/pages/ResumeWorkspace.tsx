@@ -1134,8 +1134,8 @@ export default function ResumeWorkspace() {
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,0.8fr)]">
-        <section className="rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(360px,0.8fr)]">
+        <section className="min-w-0 overflow-hidden rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
           {activeTab === "designer" ? (
             <div>
               <div className="mb-5 flex flex-wrap gap-5 border-b border-[#EEEAF3] pb-4 text-sm font-black text-muted">
@@ -1474,7 +1474,7 @@ export default function ResumeWorkspace() {
           )}
         </section>
 
-        <aside className="min-w-0">
+        <aside className="min-w-0 overflow-hidden">
           {showPaywall ? (
             <PaywallBlock
               context={activeTab === "matcher" ? "matcher" : "analyzer"}
@@ -1496,7 +1496,7 @@ export default function ResumeWorkspace() {
               </p>
             </div>
           ) : (
-            <div className="rounded-lg border border-[#E2DDEA] bg-[#F8F7FA] p-5 shadow-card">
+            <div className="overflow-hidden rounded-lg border border-[#E2DDEA] bg-[#F8F7FA] p-5 shadow-card">
               <ResumePreview resume={resume} pro={pro} />
             </div>
           )}
@@ -1518,8 +1518,14 @@ function ResumePreview({
   const visibleSections = resume.sectionOrder.filter((sectionId) => !resume.hiddenSections.includes(sectionId));
   return (
     <div
-      className={`relative mx-auto overflow-hidden bg-white text-black shadow-card ${compact ? "p-3" : "w-full max-w-[640px] rounded-lg border border-[#E2DDEA] p-6"}`}
-      style={{ aspectRatio: "8.5 / 11", fontFamily: "Arial, Helvetica, sans-serif" }}
+      className={`relative mx-auto overflow-hidden bg-white text-black shadow-card ${
+        compact ? "w-full p-3" : "w-full max-w-[640px] rounded-lg border border-[#E2DDEA] p-6"
+      }`}
+      style={{
+        aspectRatio: "8.5 / 11",
+        fontFamily: "Arial, Helvetica, sans-serif",
+        maxHeight: compact ? undefined : "calc(100vh - 220px)",
+      }}
       data-testid="resume-page-preview"
     >
       {!pro && (
