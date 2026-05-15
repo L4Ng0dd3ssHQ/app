@@ -54,16 +54,16 @@ export default function About() {
         <div className="flex items-center py-2">
           <div className="flex-1">
             <div className="font-extrabold text-brand-500">LandIt Pro</div>
-            <div className="text-xs text-muted">Unlimited scans, saved resumes, job tracking</div>
+            <div className="text-xs text-muted">$7 for 7 days or $19 for 30 days</div>
           </div>
-          <div className="text-lg font-black text-brand-500">$1</div>
+          <div className="text-lg font-black text-brand-500">$7+</div>
         </div>
         <Link
           to="/pro"
           data-testid="pricing-go-pro-btn"
           className="block w-full text-center bg-brand-500 hover:bg-brand-600 text-white font-black tracking-widest text-xs py-3.5 rounded-xl mt-3"
         >
-          GO PRO — $1 MAY DEAL
+          GO PRO - $1 FIRST WEEK
         </Link>
       </div>
 

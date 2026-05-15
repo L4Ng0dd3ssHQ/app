@@ -29,12 +29,18 @@ export async function analyzeJob(job_description: string, resume: string): Promi
   return asJson<Analysis>(res);
 }
 
-export async function createCheckout(deviceId: string, originUrl: string): Promise<{ url: string; session_id: string }> {
+export type ProPackageId = "pro_weekly" | "pro_monthly";
+
+export async function createCheckout(
+  deviceId: string,
+  originUrl: string,
+  packageId: ProPackageId,
+): Promise<{ url: string; session_id: string }> {
   const res = await fetch(`${BACKEND_URL}/api/checkout`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      package_id: "pro_monthly",
+      package_id: packageId,
       origin_url: originUrl,
       device_id: deviceId,
     }),

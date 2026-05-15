@@ -22,8 +22,9 @@ export default function Analyze() {
   useEffect(() => {
     setRemaining(quotaStatus().remaining);
     setPro(isPro());
-    const state = location.state as { resume?: string } | null;
+    const state = location.state as { resume?: string; jd?: string } | null;
     if (state?.resume) setResume(state.resume);
+    if (state?.jd) setJd(state.jd);
   }, []);
 
   const onAnalyze = async () => {

@@ -1,10 +1,56 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Crown, FileText, Loader2, Plus, Trash2, Pencil, Save, X, Zap } from "lucide-react";
+import { ArrowLeft, Crown, FileText, Loader2, Plus, Trash2, Pencil, Save, X, Zap, ArrowRight } from "lucide-react";
 import { isPro, getDeviceId } from "../storage";
 import { listResumes, createResume, updateResume, deleteResume } from "../api";
 import type { SavedResume } from "../types";
 import { track } from "../analytics";
+
+const STRUCTURED_RESUME_PREFIX = "LANDIT_RESUME_JSON:";
+
+function resumePreviewText(content: string) {
+  if (!content.startsWith(STRUCTURED_RESUME_PREFIX)) return content;
+  try {
+    const parsed = JSON.parse(content.slice(STRUCTURED_RESUME_PREFIX.length)) as {
+      candidateName?: string;
+      targetTitle?: string;
+      summary?: string;
+    };
+    return [parsed.candidateName, parsed.targetTitle, parsed.summary].filter(Boolean).join(" - ") || "Structured LandIt resume";
+  } catch {
+    return "Structured LandIt resume";
+  }
+}
+
+function resumeAnalysisText(content: string) {
+  if (!content.startsWith(STRUCTURED_RESUME_PREFIX)) return content;
+  try {
+    const parsed = JSON.parse(content.slice(STRUCTURED_RESUME_PREFIX.length)) as {
+      candidateName?: string;
+      contact?: string;
+      targetTitle?: string;
+      summary?: string;
+      skills?: string[];
+      roles?: Array<{ company?: string; title?: string; dates?: string; location?: string; bullets?: string[] }>;
+      projects?: string[];
+      education?: string;
+      certifications?: string;
+    };
+    return [
+      parsed.candidateName,
+      parsed.contact,
+      parsed.targetTitle,
+      parsed.summary,
+      parsed.skills?.join("\n"),
+      parsed.roles?.map((role) => `${role.company || ""} ${role.title || ""} ${role.dates || ""} ${role.location || ""}\n${role.bullets?.map((bullet) => `- ${bullet}`).join("\n") || ""}`).join("\n\n"),
+      parsed.projects?.map((project) => `- ${project}`).join("\n"),
+      parsed.education,
+      parsed.certifications,
+    ].filter(Boolean).join("\n\n");
+  } catch {
+    return content;
+  }
+}
 
 export default function Resumes() {
   const navigate = useNavigate();
@@ -115,10 +161,10 @@ export default function Resumes() {
           </div>
           <h2 className="text-2xl lg:text-3xl font-black text-ink mb-2">Saved Resumes is a Pro feature</h2>
           <p className="text-sm text-muted leading-snug max-w-md mx-auto mb-5">
-            Save up to 25 versions of your resume and one-click reuse them on every analysis. Use code <span className="font-black text-brand-500">LANDIT1</span> for $1 this May.
+            Save up to 25 versions of your resume and one-click reuse them on every analysis. Use code <span className="font-black text-brand-500">LANDIT1</span> for a $1 first week.
           </p>
           <Link to="/pro" data-testid="resumes-upgrade-btn" className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-black tracking-wider text-sm px-6 py-3 rounded-xl">
-            <Crown size={16} /> GO PRO — $1 THIS MONTH
+            <Crown size={16} /> GO PRO - $1 FIRST WEEK
           </Link>
         </div>
       </div>
@@ -139,13 +185,22 @@ export default function Resumes() {
           <p className="text-xs text-muted mt-0.5">{items.length} saved · up to 25 per device</p>
         </div>
         {!creating && (
-          <button
-            onClick={() => setCreating(true)}
-            data-testid="new-resume-btn"
-            className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white font-extrabold text-xs px-4 py-2.5 rounded-full"
-          >
-            <Plus size={14} /> NEW RESUME
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => navigate("/resume-builder/workspace?mode=new")}
+              data-testid="new-resume-btn"
+              className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white font-extrabold text-xs px-4 py-2.5 rounded-full"
+            >
+              <Plus size={14} /> BUILD NEW
+            </button>
+            <button
+              onClick={() => setCreating(true)}
+              data-testid="paste-resume-btn"
+              className="flex items-center gap-1.5 border border-brand-200 bg-white text-brand-500 hover:bg-brand-50 font-extrabold text-xs px-4 py-2.5 rounded-full"
+            >
+              <FileText size={14} /> PASTE RESUME
+            </button>
+          </div>
         )}
       </div>
 
@@ -200,13 +255,21 @@ export default function Resumes() {
             <FileText size={42} className="text-brand-500" />
           </div>
           <h3 className="text-xl font-extrabold text-ink">No saved resumes yet</h3>
-          <p className="text-sm text-muted mt-1.5 mb-5">Save a resume so you can one-click reuse it for every analysis.</p>
-          <button
-            onClick={() => setCreating(true)}
-            className="bg-brand-500 hover:bg-brand-600 text-white font-black tracking-wider text-sm px-7 py-3 rounded-xl"
-          >
-            CREATE FIRST RESUME
-          </button>
+          <p className="text-sm text-muted mt-1.5 mb-5">Save a pasted resume or build one in the editor so you can reopen it later.</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button
+              onClick={() => navigate("/resume-builder/workspace?mode=new")}
+              className="bg-brand-500 hover:bg-brand-600 text-white font-black tracking-wider text-sm px-7 py-3 rounded-xl"
+            >
+              BUILD FIRST RESUME
+            </button>
+            <button
+              onClick={() => setCreating(true)}
+              className="border border-brand-200 bg-white text-brand-500 hover:bg-brand-50 font-black tracking-wider text-sm px-7 py-3 rounded-xl"
+            >
+              PASTE RESUME
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-2.5">
@@ -246,17 +309,26 @@ export default function Resumes() {
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-ink truncate">{r.label}</div>
                       <div className="text-[11px] text-muted mt-1">{r.content.length} chars · updated {new Date(r.updated_at).toLocaleDateString()}</div>
-                      <p className="text-sm text-muted leading-snug mt-2 line-clamp-2">{r.content.slice(0, 220)}{r.content.length > 220 ? "\u2026" : ""}</p>
+                      <p className="text-sm text-muted leading-snug mt-2 line-clamp-2">
+                        {resumePreviewText(r.content).slice(0, 220)}{resumePreviewText(r.content).length > 220 ? "\u2026" : ""}
+                      </p>
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <button
-                        onClick={() => navigate("/analyze", { state: { resume: r.content } })}
+                        onClick={() => navigate(`/resume-builder/workspace?resume_id=${encodeURIComponent(r.id)}`)}
+                        title="Open in Resume Builder"
+                        className="w-9 h-9 rounded-full hover:bg-brand-50 flex items-center justify-center text-muted hover:text-brand-700"
+                      >
+                        <ArrowRight size={16} />
+                      </button>
+                      <button
+                        onClick={() => navigate("/analyze", { state: { resume: resumeAnalysisText(r.content) } })}
                         title="Use in analysis"
                         className="w-9 h-9 rounded-full hover:bg-brand-50 flex items-center justify-center text-muted hover:text-brand-700"
                       >
                         <Zap size={16} />
                       </button>
-                      <button onClick={() => startEdit(r)} title="Edit" className="w-9 h-9 rounded-full hover:bg-brand-50 flex items-center justify-center text-muted hover:text-brand-700">
+                      <button onClick={() => navigate(`/resume-builder/workspace?resume_id=${encodeURIComponent(r.id)}`)} title="Edit in builder" className="w-9 h-9 rounded-full hover:bg-brand-50 flex items-center justify-center text-muted hover:text-brand-700">
                         <Pencil size={16} />
                       </button>
                       <button onClick={() => handleDelete(r.id)} disabled={busyId === r.id} title="Delete" className="w-9 h-9 rounded-full hover:bg-red-50 flex items-center justify-center text-muted hover:text-bad disabled:opacity-50">
