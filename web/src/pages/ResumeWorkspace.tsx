@@ -488,14 +488,48 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const firstLine = lines[0] || "Imported Resume";
-  const contactLine = lines.slice(1, 5).find((line) => /@|\d{3}|linkedin|github|\.com/i.test(line)) || "";
-  const targetLine = lines.find((line) => /engineer|designer|director|analyst|manager|coordinator|developer|specialist/i.test(line)) || "";
-  const bulletLines = lines.filter((line) => /^[-•*]/.test(line)).map((line) => line.replace(/^[-•*]\s*/, ""));
-  const summaryStart = contactLine ? lines.indexOf(contactLine) + 1 : 1;
-  const summary = lines
-    .slice(summaryStart, summaryStart + 4)
-    .filter((line) => !/^[-•*]/.test(line))
+  const normalizedLines = lines.map((line) => line.replace(/\s+/g, " ").trim());
+  const sectionHeadingPattern = /^(professional\s+summary|summary|profile|objective|skills|technical\s+skills|work\s+experience|professional\s+experience|experience|employment|projects|education|certifications|licenses|awards)$/i;
+  const sectionIndex = (names: string[]) =>
+    normalizedLines.findIndex((line) => names.some((name) => line.toLowerCase() === name.toLowerCase()));
+  const nextSectionIndexAfter = (start: number) => {
+    const next = normalizedLines.findIndex((line, index) => index > start && sectionHeadingPattern.test(line));
+    return next === -1 ? normalizedLines.length : next;
+  };
+  const cleanSectionNoise = (line: string) =>
+    line
+      .replace(/^(professional\s+summary|summary|profile|objective)\s*[:\-]?\s*/i, "")
+      .replace(/\bS\s*U\s*M\s*M\s*A\s*R\s*Y\b/gi, "")
+      .trim();
+  const looksLikeSummarySentence = (line: string) =>
+    line.length > 90 || /passionate|proven|experience|expertise|responsible|delivering|specializing|background/i.test(line);
+  const firstLine = normalizedLines[0] || "Imported Resume";
+  const contactLine = normalizedLines.slice(1, 7).find((line) => /@|\d{3}|linkedin|github|\.com/i.test(line)) || "";
+  const summaryIndex = sectionIndex(["Professional Summary", "Summary", "Profile", "Objective"]);
+  const experienceIndex = sectionIndex(["Work Experience", "Professional Experience", "Experience", "Employment"]);
+  const summaryLines =
+    summaryIndex >= 0
+      ? normalizedLines
+          .slice(summaryIndex + 1, nextSectionIndexAfter(summaryIndex))
+          .map(cleanSectionNoise)
+          .filter(Boolean)
+      : normalizedLines
+          .slice(contactLine ? normalizedLines.indexOf(contactLine) + 1 : 1, experienceIndex > 0 ? experienceIndex : 8)
+          .map(cleanSectionNoise)
+          .filter((line) => line && !sectionHeadingPattern.test(line) && !/^[-*\u2022]/.test(line));
+  const targetLine =
+    normalizedLines
+      .slice(1, Math.max(summaryIndex > 0 ? summaryIndex : 6, 6))
+      .find(
+        (line) =>
+          !sectionHeadingPattern.test(line) &&
+          !looksLikeSummarySentence(line) &&
+          /engineer|designer|director|analyst|manager|coordinator|developer|specialist|assistant|associate|technician|administrator|consultant/i.test(line),
+      ) || "";
+  const bulletLines = normalizedLines.filter((line) => /^[-*\u2022]/.test(line)).map((line) => line.replace(/^[-*\u2022]\s*/, ""));
+  const fallbackBullets = experienceIndex >= 0 ? normalizedLines.slice(experienceIndex + 1, nextSectionIndexAfter(experienceIndex)) : normalizedLines.slice(0, 8);
+  const summary = summaryLines
+    .slice(0, 4)
     .join(" ")
     .slice(0, 700) || "Imported resume text is ready to edit. Add a target role and refine each section before exporting.";
 
@@ -504,7 +538,7 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
     templateId: "minimalist",
     candidateName: firstLine,
     contact: contactLine,
-    role: targetLine || "Imported Resume",
+    role: targetLine || "Customizable Resume Headline",
     targetTitle: targetLine,
     summary,
     skills: ["Review imported text and move skills into this section."],
@@ -514,12 +548,12 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
         title: targetLine || "Role Title",
         dates: "",
         location: "",
-        bullets: bulletLines.length ? bulletLines.slice(0, 8) : lines.slice(0, 8),
+        bullets: bulletLines.length ? bulletLines.slice(0, 8) : fallbackBullets.filter((line) => !sectionHeadingPattern.test(line)).slice(0, 8),
       },
     ],
     projects: [],
-    education: lines.find((line) => /university|college|bachelor|master|degree|certificate/i.test(line)) || "",
-    certifications: lines.filter((line) => /certified|certification|certificate|security\+|ccst/i.test(line)).join("; "),
+    education: normalizedLines.find((line) => /university|college|bachelor|master|degree|certificate/i.test(line)) || "",
+    certifications: normalizedLines.filter((line) => /certified|certification|certificate|security\+|ccst/i.test(line)).join("; "),
     sectionOrder: [...defaultSectionOrder],
     hiddenSections: [],
   };
@@ -558,7 +592,7 @@ function downloadResumePDF(resume: ResumeData) {
 
   resume.sectionOrder.filter((id) => !resume.hiddenSections.includes(id)).forEach((sectionId) => {
     if (sectionId === "summary") {
-      heading(resume.targetTitle || "Professional Summary");
+      heading("Professional Summary");
       line(resume.summary, 9, "normal", 12);
     } else if (sectionId === "skills") {
       heading("Skills");
