@@ -243,6 +243,41 @@ const baseResumeData: ResumeData = {
   hiddenSections: [],
 };
 
+const blankResumeData: ResumeData = {
+  templateId: "blank",
+  candidateName: "",
+  contact: "",
+  role: "",
+  targetTitle: "",
+  summary: "",
+  skills: [],
+  roles: [
+    {
+      title: "",
+      company: "",
+      dates: "",
+      location: "",
+      bullets: [],
+    },
+  ],
+  projects: [],
+  education: "",
+  certifications: "",
+  sectionOrder: [...defaultSectionOrder],
+  hiddenSections: [],
+};
+
+function createBlankResume(): ResumeData {
+  return {
+    ...blankResumeData,
+    skills: [],
+    roles: blankResumeData.roles.map((role) => ({ ...role, bullets: [] })),
+    projects: [],
+    sectionOrder: [...defaultSectionOrder],
+    hiddenSections: [],
+  };
+}
+
 function createResumeFromTemplate(template: ResumeTemplate): ResumeData {
   const common = {
     ...baseResumeData,
@@ -401,6 +436,28 @@ ${resume.education}
 
 CERTIFICATIONS
 ${resume.certifications}`;
+}
+
+function hasMeaningfulResumeContent(resume: ResumeData) {
+  return Boolean(
+    resume.candidateName.trim() ||
+      resume.contact.trim() ||
+      resume.role.trim() ||
+      resume.targetTitle.trim() ||
+      resume.summary.trim() ||
+      resume.skills.some((skill) => skill.trim()) ||
+      resume.projects.some((project) => project.trim()) ||
+      resume.education.trim() ||
+      resume.certifications.trim() ||
+      resume.roles.some(
+        (role) =>
+          role.title.trim() ||
+          role.company.trim() ||
+          role.dates.trim() ||
+          role.location.trim() ||
+          role.bullets.some((bullet) => bullet.trim()),
+      ),
+  );
 }
 
 const STRUCTURED_RESUME_PREFIX = "LANDIT_RESUME_JSON:";
@@ -684,13 +741,12 @@ export default function ResumeWorkspace() {
   const [activeTab, setActiveTab] = useState<BuilderTab>(() => initialTab(mode, searchParams.get("tab")));
   const [designerPanel, setDesignerPanel] = useState<DesignerPanel>("templates");
   const [resume, setResume] = useState<ResumeData>(() => {
-    const startingTemplate = mode === "template" ? resumeTemplates[0] : resumeTemplates[0];
-    const startingResume = createResumeFromTemplate(startingTemplate);
-    return mode === "job-description" ? { ...startingResume, targetTitle: "Network Engineer" } : startingResume;
+    return mode === "template" ? createResumeFromTemplate(resumeTemplates[0]) : createBlankResume();
   });
-  const [jobTitle, setJobTitle] = useState(mode === "job-description" ? "Network Engineer" : "");
+  const [jobTitle, setJobTitle] = useState("");
   const [company, setCompany] = useState("");
   const [jobDescription, setJobDescription] = useState("");
+  const [pastedResume, setPastedResume] = useState("");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
@@ -712,6 +768,8 @@ export default function ResumeWorkspace() {
     closing: coverLetterTemplates[0].closing,
   }));
   const pro = isPro();
+  const needsResumeSource = !savedResumeId && (mode === "new" || mode === "improve" || mode === "job-description");
+  const hasResumeContent = hasMeaningfulResumeContent(resume);
   const title = useMemo(() => {
     if (resume.targetTitle.trim()) return `${resume.targetTitle.trim()} Resume`;
     if (mode === "template") return "Template Resume";
@@ -746,6 +804,10 @@ export default function ResumeWorkspace() {
 
   const runBuilderAnalysis = async () => {
     setAnalysisError(null);
+    if (!hasMeaningfulResumeContent(resume)) {
+      setAnalysisError("Upload or paste a resume first.");
+      return;
+    }
     setAnalysisLoading(true);
     try {
       const prompt =
@@ -813,6 +875,20 @@ export default function ResumeWorkspace() {
     setSaveMessage("Resume imported. Review the fields, then analyze or export when ready.");
   };
 
+  const handlePastedResume = () => {
+    const text = pastedResume.trim();
+    if (!text) {
+      setSaveError("Paste your resume text first.");
+      return;
+    }
+    setImportedFilename("Pasted resume");
+    setResume(createResumeFromPlainText(text, "Pasted resume"));
+    setSelectedTemplate("minimalist");
+    setAnalysis(null);
+    setSaveError(null);
+    setSaveMessage("Resume pasted. Review the fields, then analyze or export when ready.");
+  };
+
   const handleExportPDF = () => {
     if (!pro) {
       navigate("/pro");
@@ -823,6 +899,10 @@ export default function ResumeWorkspace() {
   };
 
   const handleAnalyzeResume = () => {
+    if (!hasMeaningfulResumeContent(resume)) {
+      setSaveError("Upload or paste a resume before analyzing.");
+      return;
+    }
     if (pro) {
       navigate("/analyze", {
         state: {
@@ -901,11 +981,45 @@ export default function ResumeWorkspace() {
   };
 
   useEffect(() => {
+    if (!hasMeaningfulResumeContent(resume)) return;
     if ((activeTab === "analyzer" || activeTab === "matcher" || activeTab === "cover") && !analysis && !analysisLoading) {
       runBuilderAnalysis();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  const resumeSourcePanel = (
+    <div className="mb-5 rounded-lg border border-[#E2DDEA] bg-white p-4 shadow-card">
+      <h2 className="text-xl font-black text-ink">Import Resume</h2>
+      <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+        Upload a PDF, DOCX, TXT, or Markdown resume, or paste your resume text. LandIt will pull it into this same editor so you can clean it up before analyzing.
+      </p>
+      <div className="mt-4">
+        <ResumeFileInput onParsed={handleResumeParsed} />
+      </div>
+      <div className="mt-4">
+        <label className="text-xs font-black uppercase tracking-[0.16em] text-muted">Paste resume text</label>
+        <textarea
+          value={pastedResume}
+          onChange={(e) => setPastedResume(e.target.value)}
+          className="mt-2 min-h-[180px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300"
+          placeholder="Paste your resume text here"
+        />
+        <button
+          type="button"
+          onClick={handlePastedResume}
+          className="mt-3 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white hover:bg-brand-600"
+        >
+          Load pasted resume <ArrowRight size={17} />
+        </button>
+      </div>
+      {importedFilename && (
+        <div className="mt-4 rounded-lg bg-brand-50 p-3 text-sm font-bold text-brand-500">
+          Imported {importedFilename}. Check each field before exporting or saving.
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="pb-10" data-testid="resume-workspace-screen">
@@ -1220,6 +1334,16 @@ export default function ResumeWorkspace() {
                 <Search size={25} />
                 Compare a Job Description to Your Resume
               </h2>
+              {needsResumeSource && !hasResumeContent && (
+                <div className="mt-5">
+                  {resumeSourcePanel}
+                  <div className="rounded-lg bg-brand-50 p-3 text-sm font-bold text-muted">
+                    Upload or paste a resume first, then add the job description you want to compare.
+                  </div>
+                </div>
+              )}
+              {(!needsResumeSource || hasResumeContent) && (
+                <>
               <div className="mt-3 inline-flex rounded-lg bg-[#FFF3CF] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-ink">
                 External job search coming soon
               </div>
@@ -1263,6 +1387,8 @@ export default function ResumeWorkspace() {
                   placeholder="Paste the job description here"
                 />
               </div>
+                </>
+              )}
             </div>
           ) : (
             <div>
@@ -1272,22 +1398,10 @@ export default function ResumeWorkspace() {
                   Fill in the essentials first. The analyzer will show what is missing before you apply.
                 </p>
               </div>
-              {mode === "improve" && (
-                <div className="mb-5 rounded-lg border border-[#E2DDEA] bg-white p-4 shadow-card">
-                  <h2 className="text-xl font-black text-ink">Import Resume</h2>
-                  <p className="mt-2 text-sm font-semibold leading-6 text-muted">
-                    Upload a PDF, DOCX, TXT, or Markdown resume. LandIt will pull the text into this same editor so you can clean it up before analyzing.
-                  </p>
-                  <div className="mt-4">
-                    <ResumeFileInput onParsed={handleResumeParsed} />
-                  </div>
-                  {importedFilename && (
-                    <div className="rounded-lg bg-brand-50 p-3 text-sm font-bold text-brand-500">
-                      Imported {importedFilename}. Check each field before exporting or saving.
-                    </div>
-                  )}
-                </div>
-              )}
+              {needsResumeSource && !hasResumeContent && resumeSourcePanel}
+              {(!needsResumeSource || hasResumeContent) && (
+              <>
+              {needsResumeSource && hasResumeContent && resumeSourcePanel}
               <div className="space-y-2">
                 <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3" open>
                   <summary className="cursor-pointer text-lg font-black text-ink">Contact Information</summary>
@@ -1354,6 +1468,8 @@ export default function ResumeWorkspace() {
                   Match to a job
                 </button>
               </div>
+              </>
+              )}
             </div>
           )}
         </section>
@@ -1371,6 +1487,14 @@ export default function ResumeWorkspace() {
             <CoverLetterPreview fields={coverFields} resume={resume} targetTitle={jobTitle || resume.targetTitle} pro={pro} />
           ) : activeTab === "analyzer" ? (
             <RecommendationList analysis={analysis} />
+          ) : needsResumeSource && !hasResumeContent ? (
+            <div className="rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Resume needed</div>
+              <h2 className="mt-2 text-2xl font-black text-ink">Upload or paste your resume to start</h2>
+              <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+                The editable preview will appear here after LandIt parses your resume text.
+              </p>
+            </div>
           ) : (
             <div className="rounded-lg border border-[#E2DDEA] bg-[#F8F7FA] p-5 shadow-card">
               <ResumePreview resume={resume} pro={pro} />
