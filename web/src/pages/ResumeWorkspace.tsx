@@ -33,7 +33,7 @@ type BuilderTab = "content" | "designer" | "analyzer" | "matcher" | "cover";
 
 const tabs: Array<{ id: BuilderTab; label: string; icon: typeof FileText; badge?: string }> = [
   { id: "content", label: "Editor", icon: FileText },
-  { id: "designer", label: "Designer", icon: Palette },
+  { id: "designer", label: "Layout", icon: Palette },
   { id: "analyzer", label: "Analyzer", icon: Sparkles },
   { id: "matcher", label: "Job Matcher", icon: BriefcaseBusiness, badge: "!" },
   { id: "cover", label: "Cover Letter", icon: ScrollText },
@@ -51,7 +51,7 @@ const resumeTemplates = [
       "High-availability software engineer with deep experience in Python, Go, Kubernetes, observability, and developer experience. Proven record delivering reliable systems at scale.",
     accent: "bg-brand-500",
     layout: "minimal",
-    role: "Staff Software Engineer",
+    role: "Customizable Resume Headline",
   },
   {
     id: "tech",
@@ -64,7 +64,7 @@ const resumeTemplates = [
       "Staff software engineer specializing in distributed systems, cloud architecture, CI/CD, and platform reliability for high-traffic products.",
     accent: "bg-emerald-600",
     layout: "technical",
-    role: "Senior Software Engineer | Full-Stack | Cloud Infrastructure",
+    role: "Customizable Resume Headline",
   },
   {
     id: "creative",
@@ -77,7 +77,7 @@ const resumeTemplates = [
       "Award-winning creative director with 10 years shaping brand identity and visual storytelling for global consumer, tech, and nonprofit clients.",
     accent: "bg-[#8B1E56]",
     layout: "creative",
-    role: "Creative Director | Brand Strategy | Art Direction",
+    role: "Customizable Resume Headline",
   },
   {
     id: "career-pivot",
@@ -90,7 +90,7 @@ const resumeTemplates = [
       "Finance professional with 8 years of analysis, reporting, and modeling experience, now transitioning into data analytics with Python, SQL, and Power BI projects.",
     accent: "bg-amber-600",
     layout: "pivot",
-    role: "Transitioning Finance Professional | Aspiring Data Analyst | Python & SQL",
+    role: "Customizable Resume Headline",
   },
   {
     id: "entry-level",
@@ -103,7 +103,7 @@ const resumeTemplates = [
       "Recent marketing graduate with hands-on experience in content creation, social media management, and brand strategy through internships and campus leadership.",
     accent: "bg-sky-600",
     layout: "entry",
-    role: "Marketing Graduate | Content Strategy | Social Media & Brand",
+    role: "Customizable Resume Headline",
   },
 ];
 
@@ -187,7 +187,7 @@ const baseResumeData: ResumeData = {
   templateId: "minimalist",
   candidateName: "Jordan M. Rivera",
   contact: "jordan.rivera@email.com | (555) 867-5309 | linkedin.com/in/jordanrivera | github.com/jrivera | Austin, TX",
-  role: "Staff Software Engineer",
+  role: "Customizable Resume Headline",
   targetTitle: "Staff Software Engineer",
   summary:
     "Proven track record delivering high-availability services handling 10M+ daily requests. Deep expertise in Python, Go, and Kubernetes. Passionate about developer experience, observability, and clean architecture.",
@@ -1134,8 +1134,8 @@ export default function ResumeWorkspace() {
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,0.8fr)]">
-        <section className="rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
+      <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)] xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,0.8fr)]">
+        <section className="min-w-0 overflow-hidden rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card md:max-h-[calc(100vh-220px)] md:overflow-y-auto shell-scroll">
           {activeTab === "designer" ? (
             <div>
               <div className="mb-5 flex flex-wrap gap-5 border-b border-[#EEEAF3] pb-4 text-sm font-black text-muted">
@@ -1334,7 +1334,7 @@ export default function ResumeWorkspace() {
                 <Search size={25} />
                 Compare a Job Description to Your Resume
               </h2>
-              {needsResumeSource && !hasResumeContent && (
+              {!hasResumeContent && (
                 <div className="mt-5">
                   {resumeSourcePanel}
                   <div className="rounded-lg bg-brand-50 p-3 text-sm font-bold text-muted">
@@ -1342,7 +1342,7 @@ export default function ResumeWorkspace() {
                   </div>
                 </div>
               )}
-              {(!needsResumeSource || hasResumeContent) && (
+              {hasResumeContent && (
                 <>
               <div className="mt-3 inline-flex rounded-lg bg-[#FFF3CF] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-ink">
                 External job search coming soon
@@ -1408,7 +1408,7 @@ export default function ResumeWorkspace() {
                   <div className="mt-3 grid gap-3">
                     <input value={resume.candidateName} onChange={(e) => updateResume("candidateName", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Name" />
                     <input value={resume.contact} onChange={(e) => updateResume("contact", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Contact line" />
-                    <input value={resume.role} onChange={(e) => updateResume("role", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Resume headline" />
+                    <input value={resume.role} onChange={(e) => updateResume("role", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Custom headline" />
                   </div>
                 </details>
                 <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3" open>
@@ -1474,7 +1474,7 @@ export default function ResumeWorkspace() {
           )}
         </section>
 
-        <aside className="min-w-0">
+        <aside className="min-w-0 overflow-hidden md:max-h-[calc(100vh-220px)] md:overflow-y-auto shell-scroll">
           {showPaywall ? (
             <PaywallBlock
               context={activeTab === "matcher" ? "matcher" : "analyzer"}
@@ -1487,7 +1487,7 @@ export default function ResumeWorkspace() {
             <CoverLetterPreview fields={coverFields} resume={resume} targetTitle={jobTitle || resume.targetTitle} pro={pro} />
           ) : activeTab === "analyzer" ? (
             <RecommendationList analysis={analysis} />
-          ) : needsResumeSource && !hasResumeContent ? (
+          ) : !hasResumeContent ? (
             <div className="rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
               <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Resume needed</div>
               <h2 className="mt-2 text-2xl font-black text-ink">Upload or paste your resume to start</h2>
@@ -1496,7 +1496,7 @@ export default function ResumeWorkspace() {
               </p>
             </div>
           ) : (
-            <div className="rounded-lg border border-[#E2DDEA] bg-[#F8F7FA] p-5 shadow-card">
+            <div className="overflow-hidden rounded-lg border border-[#E2DDEA] bg-[#F8F7FA] p-5 shadow-card">
               <ResumePreview resume={resume} pro={pro} />
             </div>
           )}
@@ -1518,8 +1518,13 @@ function ResumePreview({
   const visibleSections = resume.sectionOrder.filter((sectionId) => !resume.hiddenSections.includes(sectionId));
   return (
     <div
-      className={`relative mx-auto overflow-hidden bg-white text-black shadow-card ${compact ? "p-3" : "w-full max-w-[640px] rounded-lg border border-[#E2DDEA] p-6"}`}
-      style={{ aspectRatio: "8.5 / 11", fontFamily: "Arial, Helvetica, sans-serif" }}
+      className={`relative mx-auto overflow-hidden bg-white text-black shadow-card ${
+        compact ? "w-full p-3" : "w-full max-w-[640px] rounded-lg border border-[#E2DDEA] p-6"
+      }`}
+      style={{
+        aspectRatio: "8.5 / 11",
+        fontFamily: "Arial, Helvetica, sans-serif",
+      }}
       data-testid="resume-page-preview"
     >
       {!pro && (
@@ -1546,7 +1551,7 @@ function ResumePreviewSection({ sectionId, resume, compact }: { sectionId: Resum
   if (sectionId === "summary") {
     return (
       <div className="mt-4" data-section-id="summary">
-        <h3 className={headingClass}>{resume.targetTitle || "Target title missing"}</h3>
+        <h3 className={headingClass}>Professional Summary</h3>
         <p className={`${compact ? "mt-1 text-[6px]" : "mt-2 text-[11px]"} font-normal leading-snug text-black`}>{resume.summary}</p>
       </div>
     );

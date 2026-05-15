@@ -99,7 +99,11 @@ export default function Layout() {
         }`}
         data-testid="desktop-sidebar"
       >
-        <div className="flex items-center justify-between gap-3 px-4 py-5">
+        <div
+          className={`flex gap-3 px-4 py-5 ${
+            collapsed ? "flex-col items-center justify-center" : "items-center justify-between"
+          }`}
+        >
           <Logo collapsed={collapsed} />
           <button
             type="button"
@@ -183,7 +187,7 @@ export default function Layout() {
           collapsed ? "lg:pl-[88px]" : "lg:pl-[280px]"
         }`}
       >
-        <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
+        <div className="mx-auto w-full max-w-[1440px] min-w-0 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
           <Outlet />
           <DevPanel />
         </div>
