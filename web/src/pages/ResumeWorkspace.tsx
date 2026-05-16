@@ -633,9 +633,21 @@ function safeFilename(value: string) {
 
 function downloadResumePDF(resume: ResumeData) {
   const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 44;
-  const maxWidth = 612 - margin * 2;
+  const maxWidth = pageWidth - margin * 2;
+  const bottomMargin = 44;
+  const maxPages = 2;
   let y = 44;
+
+  const ensureSpace = (needed = 12) => {
+    if (y + needed <= pageHeight - bottomMargin) return true;
+    if (doc.getNumberOfPages() >= maxPages) return false;
+    doc.addPage();
+    y = margin;
+    return true;
+  };
 
   const line = (text: string, size = 9, style: "normal" | "bold" = "normal", gap = 12) => {
     doc.setFont("helvetica", style);
@@ -643,15 +655,16 @@ function downloadResumePDF(resume: ResumeData) {
     doc.setTextColor(0, 0, 0);
     const parts = doc.splitTextToSize(text || " ", maxWidth) as string[];
     parts.forEach((part) => {
-      if (y < 752) doc.text(part, margin, y);
+      if (ensureSpace(gap)) doc.text(part, margin, y);
       y += gap;
     });
   };
 
   const heading = (text: string) => {
     y += 8;
+    if (!ensureSpace(22)) return;
     line(text.toUpperCase(), 9, "bold", 11);
-    if (y < 752) doc.line(margin, y - 7, 612 - margin, y - 7);
+    doc.line(margin, y - 7, pageWidth - margin, y - 7);
   };
 
   line(resume.candidateName, 16, "bold", 18);
@@ -1620,12 +1633,15 @@ function ResumePreview({
   const visibleSections = resume.sectionOrder.filter((sectionId) => !resume.hiddenSections.includes(sectionId));
   return (
     <div
-      className={`relative mx-auto overflow-hidden bg-white text-black shadow-card ${
+      className={`relative mx-auto bg-white text-black shadow-card ${
         compact ? "w-full p-3" : "w-full max-w-[640px] rounded-lg border border-[#E2DDEA] p-6"
       }`}
       style={{
-        aspectRatio: "8.5 / 11",
+        aspectRatio: compact ? "8.5 / 11" : undefined,
         fontFamily: "Arial, Helvetica, sans-serif",
+        maxHeight: compact ? undefined : 1656,
+        minHeight: compact ? undefined : 828,
+        overflow: "hidden",
       }}
       data-testid="resume-page-preview"
     >
@@ -1636,6 +1652,7 @@ function ResumePreview({
           </div>
         </div>
       )}
+      {!compact && <div className="pointer-events-none absolute inset-x-0 top-[828px] border-t border-dashed border-[#D8D1E3]" />}
       <h2 className={`${compact ? "text-[10px]" : "text-xl"} font-bold text-black`}>{resume.candidateName}</h2>
       <p className={`${compact ? "text-[6px]" : "text-xs"} mt-1 font-bold text-black`}>{resume.role}</p>
       <p className={`${compact ? "text-[5px]" : "text-[11px]"} mt-1 font-normal text-black`}>{resume.contact}</p>
