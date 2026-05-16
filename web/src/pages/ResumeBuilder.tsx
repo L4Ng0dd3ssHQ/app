@@ -68,10 +68,10 @@ export default function ResumeBuilder() {
   return (
     <div className="-mx-4 -my-5 min-h-screen bg-white sm:-mx-6 lg:-mx-10 lg:-my-6" data-testid="resume-builder-screen">
       <section className="flex items-center justify-between border-b border-[#DAD8DE] px-6 py-6 lg:px-10">
-        <h1 className="text-3xl font-black tracking-tight text-[#333238]">Resume Builder</h1>
+        <h1 className="text-3xl font-black tracking-tight text-ink">Resume Builder</h1>
         <Link
           to="/resume-builder/workspace?mode=new"
-          className="hidden items-center gap-2 rounded-lg border border-[#CFCBD5] bg-white px-4 py-3 text-sm font-black text-[#242228] hover:bg-[#F7F6F8] sm:inline-flex"
+          className="hidden items-center gap-2 rounded-lg border border-[#CFCBD5] bg-white px-4 py-3 text-sm font-black text-ink hover:bg-brand-50 hover:text-brand-500 sm:inline-flex"
         >
           <FilePlus2 size={18} />
           New
@@ -88,7 +88,7 @@ export default function ResumeBuilder() {
             <div
               className={`flex h-24 w-24 items-center justify-center rounded-full ${
                 index === 0
-                  ? "bg-[#EAF5F3] text-[#00584F]"
+                  ? "bg-brand-50 text-brand-500"
                   : index === 1
                     ? "bg-[#E8E9FF] text-[#2A2590]"
                     : index === 2
@@ -98,23 +98,23 @@ export default function ResumeBuilder() {
             >
               <Icon size={42} strokeWidth={2.2} />
             </div>
-            <h2 className="mt-6 text-2xl font-extrabold text-[#3B393F]">{title}</h2>
+            <h2 className="mt-6 text-2xl font-extrabold text-ink">{title}</h2>
           </Link>
         ))}
       </section>
 
       <section className="mx-auto max-w-[1580px] px-6 pb-14 lg:px-10">
         <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <h2 className="text-3xl font-extrabold text-[#333238]">Recent Resumes</h2>
+          <h2 className="text-3xl font-extrabold text-ink">Recent Resumes</h2>
           <div className="flex flex-wrap gap-3">
-            <div className="flex h-14 min-w-[280px] items-center gap-3 rounded-lg border border-[#D1CED7] bg-white px-4 text-[#77737D]">
+            <div className="flex h-14 min-w-[280px] items-center gap-3 rounded-lg border border-[#D1CED7] bg-white px-4 text-muted">
               <Search size={22} />
               <span className="text-xl font-semibold">Search Resumes</span>
             </div>
-            <button className="flex h-14 w-14 items-center justify-center rounded-lg border border-[#A9A0B5] bg-white text-[#00584F]" aria-label="List view">
+            <button className="flex h-14 w-14 items-center justify-center rounded-lg border border-brand-200 bg-white text-brand-500" aria-label="List view">
               <ListFilter size={24} />
             </button>
-            <button className="flex h-14 w-14 items-center justify-center rounded-lg border border-[#A9A0B5] bg-white text-[#00584F]" aria-label="Sort">
+            <button className="flex h-14 w-14 items-center justify-center rounded-lg border border-brand-200 bg-white text-brand-500" aria-label="Sort">
               <SlidersHorizontal size={23} />
             </button>
           </div>
@@ -130,13 +130,13 @@ export default function ResumeBuilder() {
             >
               <div className="flex items-start justify-between gap-4">
                 <h3 className="text-2xl font-black text-black">{resume.label}</h3>
-                <span className="text-2xl font-black leading-none text-[#77737D]">...</span>
+                <span className="text-2xl font-black leading-none text-muted">...</span>
               </div>
-              <div className="mt-16 flex items-center gap-3 text-lg font-bold text-[#00584F]">
+              <div className="mt-16 flex items-center gap-3 text-lg font-bold text-brand-500">
                 <BriefcaseBusiness size={20} />
                 Match a job
               </div>
-              <div className="mt-3 text-lg font-semibold text-[#77737D]">
+              <div className="mt-3 text-lg font-semibold text-muted">
                 Edited: {new Date(resume.updated_at || resume.created_at).toLocaleDateString()}
               </div>
             </Link>
@@ -144,8 +144,8 @@ export default function ResumeBuilder() {
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-[#D8D6DC] bg-[#FAFAFB] px-8 py-10">
-            <h3 className="text-2xl font-black text-[#333238]">No saved resumes yet</h3>
-            <p className="mt-2 max-w-2xl text-base font-semibold leading-7 text-[#77737D]">
+            <h3 className="text-2xl font-black text-ink">No saved resumes yet</h3>
+            <p className="mt-2 max-w-2xl text-base font-semibold leading-7 text-muted">
               Create, import, or customize a template, then save it to keep edited versions here.
             </p>
           </div>
@@ -156,11 +156,11 @@ export default function ResumeBuilder() {
             <Link
               key={title}
               to={to}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#D8D6DC] bg-white px-5 py-3 text-sm font-black text-[#333238] hover:border-brand-300 hover:bg-[#FCFAFE]"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#D8D6DC] bg-white px-5 py-3 text-sm font-black text-ink hover:border-brand-300 hover:bg-brand-50"
             >
               <Icon size={18} className="text-brand-500" />
               {title}
-              <ArrowRight size={17} className="text-[#77737D]" />
+              <ArrowRight size={17} className="text-muted" />
             </Link>
           ))}
         </div>

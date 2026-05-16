@@ -62,8 +62,8 @@ function NavItems({
           className={({ isActive }) =>
             `flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-extrabold transition-colors ${
               isActive
-                ? "bg-[#F0EDF4] text-ink"
-                : "text-[#737179] hover:bg-[#F6F5F7] hover:text-ink"
+                ? "bg-brand-50 text-brand-500"
+                : "text-muted hover:bg-[#F7F5FA] hover:text-ink"
             } ${collapsed ? "justify-center" : ""}`
           }
         >

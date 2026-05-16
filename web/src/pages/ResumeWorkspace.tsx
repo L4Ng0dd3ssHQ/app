@@ -1143,12 +1143,12 @@ export default function ResumeWorkspace() {
           <div className="flex min-w-0 items-center gap-3">
             <Link
               to="/resume-builder"
-              className="h-12 w-12 rounded-lg border border-[#D1CED7] bg-white text-[#3B393F] flex items-center justify-center hover:bg-[#F7F6F8] hover:text-brand-500"
+              className="h-12 w-12 rounded-lg border border-[#D1CED7] bg-white text-ink flex items-center justify-center hover:bg-brand-50 hover:text-brand-500"
               aria-label="Back to Resume Builder"
             >
               <ArrowLeft size={20} />
             </Link>
-            <h1 className="truncate text-2xl font-extrabold text-[#242228]">{title}</h1>
+            <h1 className="truncate text-2xl font-extrabold text-ink">{title}</h1>
           </div>
           <div className="flex gap-2">
             {pro && (
@@ -1167,12 +1167,12 @@ export default function ResumeWorkspace() {
             <button
               type="button"
               onClick={handleExportPDF}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-5 py-3 text-sm font-black text-[#242228] hover:bg-[#F7F6F8]"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-5 py-3 text-sm font-black text-ink hover:bg-brand-50 hover:text-brand-500"
             >
               <Download size={17} />
               Export PDF
             </button>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-5 py-3 text-sm font-black text-[#242228] hover:bg-[#F7F6F8]">
+            <button className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-5 py-3 text-sm font-black text-ink hover:bg-brand-50 hover:text-brand-500">
               <Menu size={17} />
               Menu
             </button>
@@ -1188,7 +1188,7 @@ export default function ResumeWorkspace() {
               type="button"
               onClick={() => setActiveTab(id)}
               className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-3 text-base font-extrabold transition-colors ${
-                activeTab === id ? "bg-brand-50 text-brand-500" : "text-[#00584F] hover:bg-[#F7F6F8]"
+                activeTab === id ? "bg-brand-50 text-brand-500" : "text-ink hover:bg-[#F7F5FA] hover:text-brand-500"
               }`}
             >
               <Icon size={19} />
