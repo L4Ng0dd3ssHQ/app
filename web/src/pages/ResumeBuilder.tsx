@@ -61,7 +61,7 @@ export default function ResumeBuilder() {
             Start from scratch, improve an existing resume, or let the job description guide what your resume should emphasize.
           </p>
         </div>
-        <div className="rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
+        <div className="rounded-lg border border-[#7C2FB8] bg-white p-5 shadow-card">
           <div className="text-xs font-black uppercase tracking-[0.16em] text-muted">Recommended workflow</div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             {["Pick a role", "Match your resume", "Apply tailored"].map((step, index) => (
