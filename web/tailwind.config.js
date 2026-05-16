@@ -22,7 +22,7 @@ export default {
         bad: "#EF4444",
       },
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+        sans: ['"Inter"', '"Helvetica Neue"', "Arial", "system-ui", "sans-serif"],
       },
       boxShadow: {
         card: "0 4px 14px rgba(75, 15, 139, 0.08)",
