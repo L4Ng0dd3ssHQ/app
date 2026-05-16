@@ -147,6 +147,9 @@ const sectionLabels: Record<ResumeSectionId, string> = {
 };
 
 const defaultSectionOrder: ResumeSectionId[] = ["summary", "skills", "experience", "projects", "education", "certifications"];
+const PARSED_ROLE_TITLE_MAX_LENGTH = 70;
+const RESUME_PREVIEW_PAGE_HEIGHT = 828;
+const RESUME_PREVIEW_TWO_PAGE_HEIGHT = RESUME_PREVIEW_PAGE_HEIGHT * 2;
 
 const coverLetterTemplates = [
   {
@@ -517,7 +520,7 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
     .reduce<string[]>((acc, line) => {
       const previous = acc[acc.length - 1];
       const monthYear = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}$/i;
-      const dashOnly = /^[-–—]$/;
+      const dashOnly = /^[-\u2013\u2014]$/;
       if (previous && monthYear.test(previous) && dashOnly.test(line)) {
         acc[acc.length - 1] = `${previous} -`;
         return acc;
@@ -592,7 +595,7 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
   };
   const looksLikeRoleTitle = (line: string, nextLine?: string, followingLine?: string) =>
     !/^[-*\u2022]/.test(line) &&
-    line.length <= 70 &&
+    line.length <= PARSED_ROLE_TITLE_MAX_LENGTH &&
     !/[.;:]$/.test(line) &&
     !/^(architected|authored|built|collaborated|conducted|contributed|deployed|designed|engineered|established|imaged|implemented|improved|integrated|led|maintained|mentored|provided|reduced)\b/i.test(line) &&
     rolePattern.test(line) &&
@@ -1153,6 +1156,7 @@ export default function ResumeWorkspace() {
         state: {
           resume: buildResumeText(resume),
           jd: jobDescription.trim().length >= 30 ? jobDescription : "",
+          fromBuilder: true,
         },
       });
       return;
@@ -1919,8 +1923,8 @@ function ResumePreview({
       style={{
         aspectRatio: compact ? "8.5 / 11" : undefined,
         fontFamily: "Arial, Helvetica, sans-serif",
-        maxHeight: compact ? undefined : 1656,
-        minHeight: compact ? undefined : 828,
+        maxHeight: compact ? undefined : RESUME_PREVIEW_TWO_PAGE_HEIGHT,
+        minHeight: compact ? undefined : RESUME_PREVIEW_PAGE_HEIGHT,
         overflow: "hidden",
       }}
       data-testid="resume-page-preview"
@@ -1932,7 +1936,7 @@ function ResumePreview({
           </div>
         </div>
       )}
-      {!compact && <div className="pointer-events-none absolute inset-x-0 top-[828px] border-t border-dashed border-[#D8D1E3]" />}
+      {!compact && <div className="pointer-events-none absolute inset-x-0 border-t border-dashed border-[#D8D1E3]" style={{ top: RESUME_PREVIEW_PAGE_HEIGHT }} />}
       <h2 className={`${compact ? "text-[10px]" : "text-xl"} font-bold text-black`}>{resume.candidateName}</h2>
       <p className={`${compact ? "text-[6px]" : "text-xs"} mt-1 font-bold text-black`}>{resume.role}</p>
       <p className={`${compact ? "text-[5px]" : "text-[11px]"} mt-1 font-normal text-black`}>{resume.contact}</p>

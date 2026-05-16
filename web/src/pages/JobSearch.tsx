@@ -54,20 +54,22 @@ export default function JobSearch() {
           <div className="lg:col-span-3 inline-flex w-fit rounded-lg bg-[#FFF3CF] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-ink">
             External job search coming soon
           </div>
-          <label className="flex items-center gap-3 rounded-lg border border-[#DCD6E5] bg-[#F8F7FA] px-4 py-3">
+          <label className="flex cursor-not-allowed items-center gap-3 rounded-lg border border-[#DCD6E5] bg-[#F8F7FA] px-4 py-3 opacity-75">
             <Search size={21} className="text-muted" />
             <input
-              className="w-full bg-transparent text-base font-semibold text-ink outline-none placeholder:text-muted"
-              placeholder="Search by title or skill"
+              className="w-full cursor-not-allowed bg-transparent text-base font-semibold text-ink outline-none placeholder:text-muted"
+              placeholder="Search by title or skill (coming soon)"
               aria-label="Search by title or skill"
+              disabled
             />
           </label>
-          <label className="flex items-center gap-3 rounded-lg border border-[#DCD6E5] bg-[#F8F7FA] px-4 py-3">
+          <label className="flex cursor-not-allowed items-center gap-3 rounded-lg border border-[#DCD6E5] bg-[#F8F7FA] px-4 py-3 opacity-75">
             <MapPin size={21} className="text-muted" />
             <input
-              className="w-full bg-transparent text-base font-semibold text-ink outline-none placeholder:text-muted"
-              placeholder="City, state, or remote"
+              className="w-full cursor-not-allowed bg-transparent text-base font-semibold text-ink outline-none placeholder:text-muted"
+              placeholder="City, state, or remote (coming soon)"
               aria-label="City, state, or remote"
+              disabled
             />
           </label>
           <Link
@@ -83,7 +85,12 @@ export default function JobSearch() {
         <div className="rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
           <div className="flex items-center justify-between gap-4">
             <h2 className="text-2xl font-black text-ink">Sample saved jobs</h2>
-            <button className="h-10 w-10 rounded-lg border border-[#DCD6E5] text-muted flex items-center justify-center" aria-label="Filter jobs">
+            <button
+              type="button"
+              disabled
+              className="h-10 w-10 cursor-not-allowed rounded-lg border border-[#DCD6E5] text-muted flex items-center justify-center opacity-60"
+              aria-label="Filter jobs coming soon"
+            >
               <SlidersHorizontal size={18} />
             </button>
           </div>
@@ -110,9 +117,13 @@ export default function JobSearch() {
                   <Link to="/analyze" className="rounded-lg bg-brand-500 px-3 py-2 text-xs font-black text-white">
                     Match resume
                   </Link>
-                  <button className="inline-flex items-center gap-1 rounded-lg border border-[#DCD6E5] px-3 py-2 text-xs font-black text-ink">
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex cursor-not-allowed items-center gap-1 rounded-lg border border-[#DCD6E5] px-3 py-2 text-xs font-black text-muted opacity-70"
+                  >
                     <Bookmark size={14} />
-                    Save job
+                    Save job soon
                   </button>
                 </div>
               </div>

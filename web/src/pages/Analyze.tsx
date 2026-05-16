@@ -18,17 +18,22 @@ export default function Analyze() {
   const [result, setResult] = useState<Analysis | null>(null);
   const [remaining, setRemaining] = useState(DAILY_LIMIT);
   const [pro, setPro] = useState(false);
+  const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
 
   useEffect(() => {
     setRemaining(quotaStatus().remaining);
     setPro(isPro());
-    const state = location.state as { resume?: string; jd?: string } | null;
+    const state = location.state as { resume?: string; jd?: string; fromBuilder?: boolean } | null;
     if (state?.resume) setResume(state.resume);
     if (state?.jd) setJd(state.jd);
+    if (state?.fromBuilder && state.resume && !state.jd) {
+      setHandoffNotice("Your resume is loaded from Resume Builder. Paste the job description here to run the full match analysis.");
+    }
   }, []);
 
   const onAnalyze = async () => {
     setError(null);
+    setHandoffNotice(null);
     if (jd.trim().length < 30) {
       setError("Job description is too short. Paste the full posting (at least 30 chars).");
       return;
@@ -63,6 +68,7 @@ export default function Analyze() {
     setJd("");
     setResume("");
     setError(null);
+    setHandoffNotice(null);
   };
 
   if (result) {
@@ -123,7 +129,10 @@ export default function Analyze() {
         <textarea
           data-testid="jd-input"
           value={jd}
-          onChange={(e) => setJd(e.target.value)}
+          onChange={(e) => {
+            setJd(e.target.value);
+            if (handoffNotice) setHandoffNotice(null);
+          }}
           placeholder="Paste the full job posting here..."
           rows={6}
           className="w-full bg-brand-50/50 rounded-xl p-3 text-sm leading-relaxed text-ink placeholder-muted/70 outline-none focus:ring-2 focus:ring-brand-300 resize-y min-h-[140px]"
@@ -165,6 +174,11 @@ export default function Analyze() {
           {error}
         </div>
       )}
+      {handoffNotice && (
+        <div className="bg-brand-50 border border-brand-100 text-brand-700 text-sm font-bold rounded-xl p-3 mb-3" data-testid="analyze-handoff-notice">
+          {handoffNotice}
+        </div>
+      )}
 
       <button
         onClick={onAnalyze}
@@ -176,7 +190,7 @@ export default function Analyze() {
       >
         {loading ? (
           <>
-            <Loader2 size={18} className="animate-spin" /> ANALYZING…
+            <Loader2 size={18} className="animate-spin" /> ANALYZING...
           </>
         ) : (
           <>
@@ -199,9 +213,9 @@ export default function Analyze() {
 
       <button
         onClick={() => navigate("/")}
-        className="block mx-auto text-xs text-muted hover:text-brand-500 mt-6 underline-offset-2 hover:underline"
+        className="mx-auto mt-6 flex items-center gap-1 text-xs text-muted hover:text-brand-500 underline-offset-2 hover:underline"
       >
-        ← Back to home
+        <ArrowLeft size={14} /> Back to home
       </button>
     </div>
   );
