@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -7,6 +7,8 @@ import {
   ArrowRight,
   ArrowUp,
   BriefcaseBusiness,
+  ChevronDown,
+  ChevronRight,
   CheckCircle2,
   Download,
   Eye,
@@ -18,6 +20,7 @@ import {
   Menu,
   Palette,
   PenLine,
+  Plus,
   ScrollText,
   Search,
   Sparkles,
@@ -110,6 +113,7 @@ const resumeTemplates = [
 type ResumeTemplate = (typeof resumeTemplates)[number];
 type DesignerPanel = "templates" | "sections";
 type ResumeSectionId = "summary" | "skills" | "experience" | "projects" | "education" | "certifications";
+type EditorSectionId = ResumeSectionId | "contact" | "target";
 type ResumeRole = {
   title: string;
   company: string;
@@ -389,9 +393,9 @@ function createResumeFromTemplate(template: ResumeTemplate): ResumeData {
 
 function initialTab(mode: string | null, tab: string | null): BuilderTab {
   if (tab === "designer" || tab === "analyzer" || tab === "matcher" || tab === "cover") return tab;
-  if (mode === "improve") return "analyzer";
+  if (mode === "improve") return "content";
   if (mode === "job-description") return "matcher";
-  if (mode === "template") return "designer";
+  if (mode === "template") return "content";
   if (mode === "cover-letter") return "cover";
   return "content";
 }
@@ -874,6 +878,8 @@ export default function ResumeWorkspace() {
   const [currentSavedResumeLabel, setCurrentSavedResumeLabel] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState(resumeTemplates[0].id);
   const [selectedCoverTemplate, setSelectedCoverTemplate] = useState(coverLetterTemplates[0].id);
+  const [showResumeSource, setShowResumeSource] = useState(false);
+  const [openSection, setOpenSection] = useState<EditorSectionId | null>(null);
   const [coverFields, setCoverFields] = useState(() => ({
     hiringManager: "Hiring Manager",
     companyName: "",
@@ -885,6 +891,7 @@ export default function ResumeWorkspace() {
   const pro = isPro();
   const needsResumeSource = !savedResumeId && (mode === "new" || mode === "improve" || mode === "job-description");
   const hasResumeContent = hasMeaningfulResumeContent(resume);
+  const showSourcePanel = needsResumeSource && (!hasResumeContent || showResumeSource);
   const title = useMemo(() => {
     if (resume.targetTitle.trim()) return `${resume.targetTitle.trim()} Resume`;
     if (mode === "template") return "Template Resume";
@@ -892,7 +899,7 @@ export default function ResumeWorkspace() {
     return "Untitled Resume";
   }, [mode, resume.targetTitle]);
 
-  const showPaywall = !pro && (activeTab === "analyzer" || activeTab === "matcher");
+  const showPaywall = hasResumeContent && !pro && (activeTab === "analyzer" || activeTab === "matcher");
   const analyzerBadge = analysis ? String(recommendationCountFromAnalysis(analysis)) : undefined;
 
   useEffect(() => {
@@ -906,6 +913,8 @@ export default function ResumeWorkspace() {
         setResume(parseSavedResumeContent(saved.content));
         setCurrentSavedResumeId(saved.id);
         setCurrentSavedResumeLabel(saved.label);
+        setShowResumeSource(false);
+        setOpenSection(null);
         setAnalysis(null);
       } catch (e) {
         if (!cancelled) setSaveError(e instanceof Error ? e.message : "Could not load saved resume.");
@@ -943,6 +952,8 @@ export default function ResumeWorkspace() {
     if (!template) return;
     setSelectedTemplate(template.id);
     setResume(createResumeFromTemplate(template));
+    setShowResumeSource(false);
+    setOpenSection(null);
     setAnalysis(null);
     setActiveTab("content");
   };
@@ -986,6 +997,9 @@ export default function ResumeWorkspace() {
     setImportedFilename(result.filename);
     setResume(createResumeFromPlainText(result.text, result.filename));
     setSelectedTemplate("minimalist");
+    setShowResumeSource(false);
+    setOpenSection(null);
+    setActiveTab("content");
     setAnalysis(null);
     setSaveMessage("Resume imported. Review the fields, then analyze or export when ready.");
   };
@@ -999,6 +1013,9 @@ export default function ResumeWorkspace() {
     setImportedFilename("Pasted resume");
     setResume(createResumeFromPlainText(text, "Pasted resume"));
     setSelectedTemplate("minimalist");
+    setShowResumeSource(false);
+    setOpenSection(null);
+    setActiveTab("content");
     setAnalysis(null);
     setSaveError(null);
     setSaveMessage("Resume pasted. Review the fields, then analyze or export when ready.");
@@ -1095,6 +1112,138 @@ export default function ResumeWorkspace() {
     }));
   };
 
+  const addSectionItem = (sectionId: EditorSectionId) => {
+    setOpenSection(sectionId);
+    if (sectionId === "skills") {
+      setResume((current) => ({ ...current, skills: [...current.skills, ""] }));
+    } else if (sectionId === "experience") {
+      setResume((current) => ({
+        ...current,
+        roles: [...current.roles, { company: "", title: "", dates: "", location: "", bullets: [] }],
+      }));
+    } else if (sectionId === "projects") {
+      setResume((current) => ({ ...current, projects: [...current.projects, ""] }));
+    }
+    setAnalysis(null);
+    setSaveMessage(null);
+  };
+
+  const renderSectionEditor = (sectionId: EditorSectionId) => {
+    if (sectionId === "contact") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label="Contact Information"
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+        >
+          <div className="grid gap-3">
+            <input value={resume.candidateName} onChange={(e) => updateResume("candidateName", e.target.value)} className="min-h-11 w-full rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Name" />
+            <input value={resume.contact} onChange={(e) => updateResume("contact", e.target.value)} className="min-h-11 w-full rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Contact line" />
+            <input value={resume.role} onChange={(e) => updateResume("role", e.target.value)} className="min-h-11 w-full rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Custom headline" />
+          </div>
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "target") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label="Target Title"
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+        >
+          <input value={resume.targetTitle} onChange={(e) => updateResume("targetTitle", e.target.value)} className="min-h-11 w-full rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Example: Network Engineer" />
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "summary") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label={sectionLabels[sectionId]}
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+        >
+          <textarea value={resume.summary} onChange={(e) => updateResume("summary", e.target.value)} className="min-h-[120px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" />
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "skills") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label={sectionLabels[sectionId]}
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+          onAdd={() => addSectionItem(sectionId)}
+        >
+          <textarea value={resume.skills.join("\n")} onChange={(e) => updateResume("skills", e.target.value.split("\n"))} className="min-h-[140px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One skill group per line" />
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "experience") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label={sectionLabels[sectionId]}
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+          onAdd={() => addSectionItem(sectionId)}
+        >
+          <div className="space-y-4">
+            {resume.roles.map((role, index) => (
+              <div key={`${role.company}-${index}`} className="rounded-lg border border-[#EEEAF3] bg-[#FAFAFB] p-3">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <input value={role.company} onChange={(e) => updateRole(index, { company: e.target.value })} className="min-h-10 rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Company" />
+                  <input value={role.title} onChange={(e) => updateRole(index, { title: e.target.value })} className="min-h-10 rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Title" />
+                  <input value={role.location} onChange={(e) => updateRole(index, { location: e.target.value })} className="min-h-10 rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Location" />
+                  <input value={role.dates} onChange={(e) => updateRole(index, { dates: e.target.value })} className="min-h-10 rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Dates" />
+                </div>
+                <textarea value={role.bullets.join("\n")} onChange={(e) => updateRole(index, { bullets: e.target.value.split("\n").filter(Boolean) })} className="mt-3 min-h-[100px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One bullet per line" />
+              </div>
+            ))}
+          </div>
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "projects") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label={sectionLabels[sectionId]}
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+          onAdd={() => addSectionItem(sectionId)}
+        >
+          <textarea value={resume.projects.join("\n")} onChange={(e) => updateResume("projects", e.target.value.split("\n").filter(Boolean))} className="min-h-[110px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One project per line" />
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "education") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label={sectionLabels[sectionId]}
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+        >
+          <textarea value={resume.education} onChange={(e) => updateResume("education", e.target.value)} className="min-h-[80px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" />
+        </ResumeEditorSection>
+      );
+    }
+    return (
+      <ResumeEditorSection
+        sectionId={sectionId}
+        label={sectionLabels[sectionId]}
+        open={openSection === sectionId}
+        onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+      >
+        <textarea value={resume.certifications} onChange={(e) => updateResume("certifications", e.target.value)} className="min-h-[80px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" />
+      </ResumeEditorSection>
+    );
+  };
+
   useEffect(() => {
     if (!hasMeaningfulResumeContent(resume)) return;
     if ((activeTab === "analyzer" || activeTab === "matcher" || activeTab === "cover") && !analysis && !analysisLoading) {
@@ -1104,15 +1253,15 @@ export default function ResumeWorkspace() {
   }, [activeTab]);
 
   const resumeSourcePanel = (
-    <div className="mb-5 rounded-lg border border-[#E2DDEA] bg-white p-4 shadow-card">
+    <div className="rounded-lg border border-[#D8D6DC] bg-white p-5">
       <h2 className="text-xl font-black text-ink">Import Resume</h2>
       <p className="mt-2 text-sm font-semibold leading-6 text-muted">
         Upload a PDF, DOCX, TXT, or Markdown resume, or paste your resume text. LandIt will pull it into this same editor so you can clean it up before analyzing.
       </p>
-      <div className="mt-4">
+      <div className="mt-5">
         <ResumeFileInput onParsed={handleResumeParsed} />
       </div>
-      <div className="mt-4">
+      <div className="mt-5">
         <label className="text-xs font-black uppercase tracking-[0.16em] text-muted">Paste resume text</label>
         <textarea
           value={pastedResume}
@@ -1139,16 +1288,16 @@ export default function ResumeWorkspace() {
   return (
     <div className="-mx-4 -my-5 min-h-screen bg-white sm:-mx-6 lg:-mx-10 lg:-my-6" data-testid="resume-workspace-screen">
       <header className="border-b border-[#DAD8DE] bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#DAD8DE] px-5 py-4 lg:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#DAD8DE] px-5 py-2.5 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <Link
               to="/resume-builder"
-              className="h-12 w-12 rounded-lg border border-[#D1CED7] bg-white text-ink flex items-center justify-center hover:bg-brand-50 hover:text-brand-500"
+              className="h-10 w-10 rounded-lg border border-[#D1CED7] bg-white text-ink flex items-center justify-center hover:bg-brand-50 hover:text-brand-500"
               aria-label="Back to Resume Builder"
             >
               <ArrowLeft size={20} />
             </Link>
-            <h1 className="truncate text-2xl font-extrabold text-ink">{title}</h1>
+            <h1 className="truncate text-xl font-extrabold text-ink">{title}</h1>
           </div>
           <div className="flex gap-2">
             {pro && (
@@ -1158,7 +1307,7 @@ export default function ResumeWorkspace() {
                   setCurrentSavedResumeLabel((current) => current || title);
                   setSavePromptOpen(true);
                 }}
-                className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white hover:bg-brand-600"
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-black text-white hover:bg-brand-600"
               >
                 <FileText size={17} />
                 Save version
@@ -1167,19 +1316,19 @@ export default function ResumeWorkspace() {
             <button
               type="button"
               onClick={handleExportPDF}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-5 py-3 text-sm font-black text-ink hover:bg-brand-50 hover:text-brand-500"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-4 py-2.5 text-sm font-black text-ink hover:bg-brand-50 hover:text-brand-500"
             >
               <Download size={17} />
               Export PDF
             </button>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-5 py-3 text-sm font-black text-ink hover:bg-brand-50 hover:text-brand-500">
+            <button className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-4 py-2.5 text-sm font-black text-ink hover:bg-brand-50 hover:text-brand-500">
               <Menu size={17} />
               Menu
             </button>
           </div>
         </div>
 
-        <nav className="flex gap-4 overflow-x-auto px-5 py-3 shell-scroll lg:px-8" aria-label="Resume builder tools">
+        <nav className="flex gap-3 overflow-x-auto px-5 py-2.5 shell-scroll lg:px-8" aria-label="Resume builder tools">
           {tabs.map(({ id, label, icon: Icon, badge }) => {
             const displayBadge = id === "analyzer" ? analyzerBadge : badge;
             return (
@@ -1187,7 +1336,7 @@ export default function ResumeWorkspace() {
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
-              className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-3 text-base font-extrabold transition-colors ${
+              className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-base font-extrabold transition-colors ${
                 activeTab === id ? "bg-brand-50 text-brand-500" : "text-ink hover:bg-[#F7F5FA] hover:text-brand-500"
               }`}
             >
@@ -1203,7 +1352,7 @@ export default function ResumeWorkspace() {
       </header>
 
       {(saveMessage || saveError) && (
-        <div className="mb-4">
+        <div className="border-b border-[#DAD8DE] bg-white px-5 py-2 lg:px-8">
           {saveMessage && <div className="rounded-lg bg-brand-50 p-3 text-sm font-bold text-brand-500">{saveMessage}</div>}
           {saveError && <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{saveError}</div>}
         </div>
@@ -1249,8 +1398,8 @@ export default function ResumeWorkspace() {
         </div>
       )}
 
-      <div className="grid min-w-0 md:grid-cols-[minmax(0,1fr)_minmax(360px,0.82fr)] xl:grid-cols-[minmax(0,0.95fr)_minmax(480px,0.82fr)]">
-        <section className="min-w-0 overflow-hidden border-r border-[#DAD8DE] bg-white p-5 md:max-h-[calc(100vh-158px)] md:overflow-y-auto lg:p-8 shell-scroll">
+      <div className="grid min-w-0 md:grid-cols-[minmax(0,1fr)_minmax(360px,0.84fr)] xl:grid-cols-[minmax(0,0.95fr)_minmax(540px,0.84fr)]">
+        <section className="min-w-0 overflow-hidden border-r border-[#DAD8DE] bg-white p-5 md:max-h-[calc(100vh-124px)] md:overflow-y-auto lg:px-8 lg:py-4 shell-scroll">
           {activeTab === "designer" ? (
             <div>
               <div className="mb-5 flex flex-wrap gap-5 border-b border-[#EEEAF3] pb-4 text-sm font-black text-muted">
@@ -1507,90 +1656,73 @@ export default function ResumeWorkspace() {
             </div>
           ) : (
             <div>
-              <div className="mb-5 rounded-lg border border-brand-100 bg-brand-50 p-4">
-                <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Start building</div>
-                <p className="mt-2 text-sm font-semibold text-muted">
-                  Fill in the essentials first. The analyzer will show what is missing before you apply.
-                </p>
-              </div>
-              {needsResumeSource && !hasResumeContent && resumeSourcePanel}
-              {(!needsResumeSource || hasResumeContent) && (
-              <>
-              {needsResumeSource && hasResumeContent && resumeSourcePanel}
-              <div className="space-y-2">
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3" open>
-                  <summary className="cursor-pointer text-lg font-black text-ink">Contact Information</summary>
-                  <div className="mt-3 grid gap-3">
-                    <input value={resume.candidateName} onChange={(e) => updateResume("candidateName", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Name" />
-                    <input value={resume.contact} onChange={(e) => updateResume("contact", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Contact line" />
-                    <input value={resume.role} onChange={(e) => updateResume("role", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Custom headline" />
+              {showSourcePanel ? (
+                <div className="mx-auto max-w-[820px] py-5">
+                  {hasResumeContent && (
+                    <button
+                      type="button"
+                      onClick={() => setShowResumeSource(false)}
+                      className="mb-4 rounded-lg border border-[#DCD6E5] bg-white px-4 py-2 text-sm font-black text-ink hover:bg-brand-50"
+                    >
+                      Back to editor
+                    </button>
+                  )}
+                  {resumeSourcePanel}
+                </div>
+              ) : (
+                <>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Editor</div>
+                      <p className="mt-1 text-sm font-semibold text-muted">Open a section to edit fields. The preview updates as you go.</p>
+                    </div>
+                    {needsResumeSource && (
+                      <button
+                        type="button"
+                        onClick={() => setShowResumeSource(true)}
+                        className="rounded-lg border border-[#DCD6E5] bg-white px-4 py-2 text-sm font-black text-brand-500 hover:bg-brand-50"
+                      >
+                        Import another resume
+                      </button>
+                    )}
                   </div>
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3" open>
-                  <summary className="cursor-pointer text-lg font-black text-ink">Target Title</summary>
-                  <input value={resume.targetTitle} onChange={(e) => updateResume("targetTitle", e.target.value)} className="mt-3 min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Example: Network Engineer" />
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3" open>
-                  <summary className="cursor-pointer text-lg font-black text-ink">Professional Summary</summary>
-                  <textarea value={resume.summary} onChange={(e) => updateResume("summary", e.target.value)} className="mt-3 min-h-[120px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300" />
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3">
-                  <summary className="cursor-pointer text-lg font-black text-ink">Skills & Interests</summary>
-                  <textarea value={resume.skills.join("\n")} onChange={(e) => updateResume("skills", e.target.value.split("\n").filter(Boolean))} className="mt-3 min-h-[150px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One skill group per line" />
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3" open>
-                  <summary className="cursor-pointer text-lg font-black text-ink">Work Experience</summary>
-                  <div className="mt-3 space-y-4">
-                    {resume.roles.map((role, index) => (
-                      <div key={`${role.company}-${index}`} className="rounded-lg bg-[#F8F7FA] p-4">
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <input value={role.company} onChange={(e) => updateRole(index, { company: e.target.value })} className="min-h-11 rounded-lg border border-[#DCD6E5] px-3 text-sm font-bold outline-none focus:border-brand-300" placeholder="Company" />
-                          <input value={role.title} onChange={(e) => updateRole(index, { title: e.target.value })} className="min-h-11 rounded-lg border border-[#DCD6E5] px-3 text-sm font-bold outline-none focus:border-brand-300" placeholder="Title" />
-                          <input value={role.location} onChange={(e) => updateRole(index, { location: e.target.value })} className="min-h-11 rounded-lg border border-[#DCD6E5] px-3 text-sm font-bold outline-none focus:border-brand-300" placeholder="Location" />
-                          <input value={role.dates} onChange={(e) => updateRole(index, { dates: e.target.value })} className="min-h-11 rounded-lg border border-[#DCD6E5] px-3 text-sm font-bold outline-none focus:border-brand-300" placeholder="Dates" />
-                        </div>
-                        <textarea value={role.bullets.join("\n")} onChange={(e) => updateRole(index, { bullets: e.target.value.split("\n").filter(Boolean) })} className="mt-3 min-h-[120px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One bullet per line" />
-                      </div>
-                    ))}
+                  <div className="border-y border-[#D4D1DA]">
+                    {renderSectionEditor("contact")}
+                    {renderSectionEditor("target")}
+                    {resume.sectionOrder.filter((id) => !resume.hiddenSections.includes(id)).map((sectionId) => renderSectionEditor(sectionId))}
                   </div>
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3">
-                  <summary className="cursor-pointer text-lg font-black text-ink">Projects</summary>
-                  <textarea value={resume.projects.join("\n")} onChange={(e) => updateResume("projects", e.target.value.split("\n").filter(Boolean))} className="mt-3 min-h-[110px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One project per line" />
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3">
-                  <summary className="cursor-pointer text-lg font-black text-ink">Education</summary>
-                  <textarea value={resume.education} onChange={(e) => updateResume("education", e.target.value)} className="mt-3 min-h-[80px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300" />
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3">
-                  <summary className="cursor-pointer text-lg font-black text-ink">Certifications</summary>
-                  <textarea value={resume.certifications} onChange={(e) => updateResume("certifications", e.target.value)} className="mt-3 min-h-[80px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300" />
-                </details>
-              </div>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={handleAnalyzeResume}
-                  className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white hover:bg-brand-600"
-                >
-                  Analyze resume <ArrowRight size={17} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("matcher")}
-                  className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-white px-5 py-3 text-sm font-black text-brand-500 hover:bg-brand-50"
-                >
-                  Match to a job
-                </button>
-              </div>
-              </>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={handleAnalyzeResume}
+                      className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white hover:bg-brand-600"
+                    >
+                      Analyze resume <ArrowRight size={17} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("matcher")}
+                      className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-white px-5 py-3 text-sm font-black text-brand-500 hover:bg-brand-50"
+                    >
+                      Match to a job
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           )}
         </section>
 
-        <aside className="min-w-0 overflow-hidden bg-[#F7F7F8] p-5 md:max-h-[calc(100vh-158px)] md:overflow-y-auto lg:p-7 shell-scroll">
-          {showPaywall ? (
+        <aside className="min-w-0 overflow-hidden bg-[#F4F4F5] p-4 md:max-h-[calc(100vh-124px)] md:overflow-y-auto lg:p-6 shell-scroll">
+          {!hasResumeContent ? (
+            <div className="rounded-lg border border-[#D8D6DC] bg-white p-5">
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Resume needed</div>
+              <h2 className="mt-2 text-2xl font-black text-ink">Upload or paste your resume to start</h2>
+              <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+                The editable preview will appear here after LandIt parses your resume text.
+              </p>
+            </div>
+          ) : showPaywall ? (
             <PaywallBlock
               context={activeTab === "matcher" ? "matcher" : "analyzer"}
               analysis={analysis}
@@ -1602,14 +1734,6 @@ export default function ResumeWorkspace() {
             <CoverLetterPreview fields={coverFields} resume={resume} targetTitle={jobTitle || resume.targetTitle} pro={pro} />
           ) : activeTab === "analyzer" ? (
             <RecommendationList analysis={analysis} />
-          ) : !hasResumeContent ? (
-            <div className="rounded-lg border border-[#D8D6DC] bg-white p-5">
-              <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Resume needed</div>
-              <h2 className="mt-2 text-2xl font-black text-ink">Upload or paste your resume to start</h2>
-              <p className="mt-2 text-sm font-semibold leading-6 text-muted">
-                The editable preview will appear here after LandIt parses your resume text.
-              </p>
-            </div>
           ) : (
             <div className="overflow-hidden rounded-lg border border-[#D8D6DC] bg-white p-4">
               <ResumePreview resume={resume} pro={pro} />
@@ -1617,6 +1741,49 @@ export default function ResumeWorkspace() {
           )}
         </aside>
       </div>
+    </div>
+  );
+}
+
+function ResumeEditorSection({
+  sectionId,
+  label,
+  open,
+  onToggle,
+  onAdd,
+  children,
+}: {
+  sectionId: EditorSectionId;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  onAdd?: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="border-b border-[#D4D1DA] last:border-b-0" data-editor-section-id={sectionId}>
+      <div className="flex min-h-[84px] items-center gap-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex min-w-0 flex-1 items-center gap-3 py-4 text-left text-[22px] font-medium text-ink hover:text-brand-500"
+          aria-expanded={open}
+        >
+          {open ? <ChevronDown size={28} strokeWidth={1.9} /> : <ChevronRight size={28} strokeWidth={1.9} />}
+          <span className="truncate">{label}</span>
+        </button>
+        {onAdd && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-brand-500 hover:bg-brand-50"
+            aria-label={`Add ${label}`}
+          >
+            <Plus size={25} strokeWidth={2.2} />
+          </button>
+        )}
+      </div>
+      {open && <div className="pb-5 pl-11 pr-2">{children}</div>}
     </div>
   );
 }
@@ -1634,7 +1801,7 @@ function ResumePreview({
   return (
     <div
       className={`relative mx-auto bg-white text-black shadow-card ${
-        compact ? "w-full p-3" : "w-full max-w-[640px] rounded-lg border border-[#E2DDEA] p-6"
+        compact ? "w-full p-3" : "w-full max-w-[620px] rounded-lg border border-[#E2DDEA] p-5"
       }`}
       style={{
         aspectRatio: compact ? "8.5 / 11" : undefined,
@@ -1646,8 +1813,8 @@ function ResumePreview({
       data-testid="resume-page-preview"
     >
       {!pro && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex -rotate-12 items-center justify-center opacity-[0.08]">
-          <div className={`${compact ? "text-2xl" : "text-6xl"} font-black uppercase tracking-[0.2em] text-black`}>
+        <div className="pointer-events-none absolute inset-0 z-10 flex -rotate-12 items-center justify-center opacity-[0.045]">
+          <div className={`${compact ? "text-2xl" : "text-5xl"} font-black uppercase tracking-[0.2em] text-black`}>
             LandIt Preview
           </div>
         </div>
