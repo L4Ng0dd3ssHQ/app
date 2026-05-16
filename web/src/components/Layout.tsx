@@ -62,8 +62,8 @@ function NavItems({
           className={({ isActive }) =>
             `flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-extrabold transition-colors ${
               isActive
-                ? "bg-brand-50 text-brand-500"
-                : "text-muted hover:bg-white hover:text-ink"
+                ? "bg-[#F0EDF4] text-ink"
+                : "text-[#737179] hover:bg-[#F6F5F7] hover:text-ink"
             } ${collapsed ? "justify-center" : ""}`
           }
         >
@@ -92,10 +92,10 @@ export default function Layout() {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-[#F8F7FA] text-ink">
+    <div className="min-h-screen bg-[#FBFBFC] text-ink">
       <aside
-        className={`hidden lg:flex fixed inset-y-0 left-0 z-30 flex-col border-r border-[#E8E3EE] bg-[#FBFAFC] transition-all duration-200 ${
-          collapsed ? "w-[88px]" : "w-[280px]"
+        className={`hidden lg:flex fixed inset-y-0 left-0 z-30 flex-col border-r border-[#DAD8DE] bg-white transition-all duration-200 ${
+          collapsed ? "w-[92px]" : "w-[304px]"
         }`}
         data-testid="desktop-sidebar"
       >
@@ -116,11 +116,11 @@ export default function Layout() {
           </button>
         </div>
 
-        <div className="px-3 py-3 border-t border-[#E8E3EE]">
+        <div className="px-3 py-3 border-t border-[#ECEAEF]">
           <NavItems collapsed={collapsed} />
         </div>
 
-        <div className="mt-auto p-3 border-t border-[#E8E3EE]">
+        <div className="mt-auto p-3 border-t border-[#ECEAEF]">
           <Link
             to="/analyze"
             className={`flex items-center gap-3 rounded-lg bg-brand-500 px-3 py-3 text-sm font-black text-white hover:bg-brand-600 transition-colors ${
@@ -134,7 +134,7 @@ export default function Layout() {
         </div>
       </aside>
 
-      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between border-b border-[#E8E3EE] bg-white px-4 py-3">
+      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between border-b border-[#DAD8DE] bg-white px-4 py-3">
         <Logo />
         <button
           type="button"
@@ -156,7 +156,7 @@ export default function Layout() {
             onClick={() => setMobileOpen(false)}
             aria-label="Close navigation menu"
           />
-          <div className="absolute inset-y-0 left-0 w-[min(320px,88vw)] bg-[#FBFAFC] border-r border-[#E8E3EE] shadow-cardLg p-4">
+          <div className="absolute inset-y-0 left-0 w-[min(320px,88vw)] bg-white border-r border-[#DAD8DE] shadow-cardLg p-4">
             <div className="flex items-center justify-between gap-3 mb-5">
               <Logo />
               <button
@@ -184,10 +184,10 @@ export default function Layout() {
 
       <main
         className={`min-h-screen overflow-x-hidden transition-all duration-200 ${
-          collapsed ? "lg:pl-[88px]" : "lg:pl-[280px]"
+          collapsed ? "lg:pl-[92px]" : "lg:pl-[304px]"
         }`}
       >
-        <div className="mx-auto w-full max-w-[1440px] min-w-0 px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
+        <div className="mx-auto w-full max-w-[1600px] min-w-0 px-4 py-5 sm:px-6 lg:px-10 lg:py-6">
           <Outlet />
           <DevPanel />
         </div>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -5,9 +6,15 @@ import {
   FilePlus2,
   FileText,
   Layers,
+  ListFilter,
   PenLine,
+  Search,
+  SlidersHorizontal,
   ScrollText,
 } from "lucide-react";
+import { listResumes } from "../api";
+import { getDeviceId, isPro } from "../storage";
+import type { SavedResume } from "../types";
 
 const builderActions = [
   {
@@ -49,62 +56,113 @@ const builderActions = [
 ];
 
 export default function ResumeBuilder() {
+  const [recentResumes, setRecentResumes] = useState<SavedResume[]>([]);
+
+  useEffect(() => {
+    if (!isPro()) return;
+    listResumes(getDeviceId())
+      .then((items) => setRecentResumes(items.slice(0, 6)))
+      .catch(() => setRecentResumes([]));
+  }, []);
+
   return (
-    <div className="pb-12" data-testid="resume-builder-screen">
-      <section className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
-        <div>
-          <div className="mb-4 inline-flex rounded-lg bg-brand-50 px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-brand-500">
-            Resume Builder
-          </div>
-          <h1 className="text-4xl font-black tracking-tight text-ink sm:text-5xl">Build a resume for the job you want.</h1>
-          <p className="mt-4 max-w-2xl text-base leading-8 text-muted">
-            Start from scratch, improve an existing resume, or let the job description guide what your resume should emphasize.
-          </p>
-        </div>
-        <div className="rounded-lg border border-[#7C2FB8] bg-white p-5 shadow-card">
-          <div className="text-xs font-black uppercase tracking-[0.16em] text-muted">Recommended workflow</div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            {["Pick a role", "Match your resume", "Apply tailored"].map((step, index) => (
-              <div key={step} className="rounded-lg bg-[#F7F5FA] p-4">
-                <div className="text-2xl font-black text-brand-500">0{index + 1}</div>
-                <div className="mt-2 text-sm font-black text-ink">{step}</div>
-              </div>
-            ))}
-          </div>
-        </div>
+    <div className="-mx-4 -my-5 min-h-screen bg-white sm:-mx-6 lg:-mx-10 lg:-my-6" data-testid="resume-builder-screen">
+      <section className="flex items-center justify-between border-b border-[#DAD8DE] px-6 py-6 lg:px-10">
+        <h1 className="text-3xl font-black tracking-tight text-[#333238]">Resume Builder</h1>
+        <Link
+          to="/resume-builder/workspace?mode=new"
+          className="hidden items-center gap-2 rounded-lg border border-[#CFCBD5] bg-white px-4 py-3 text-sm font-black text-[#242228] hover:bg-[#F7F6F8] sm:inline-flex"
+        >
+          <FilePlus2 size={18} />
+          New
+        </Link>
       </section>
 
-      <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {builderActions.map(({ title, text, icon: Icon, to }) => (
+      <section className="mx-auto grid max-w-[1580px] gap-4 px-6 py-12 md:grid-cols-2 xl:grid-cols-4 lg:px-10">
+        {builderActions.slice(0, 4).map(({ title, icon: Icon, to }, index) => (
           <Link
             key={title}
             to={to}
-            className="group rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card transition-colors hover:border-brand-200 hover:bg-brand-50"
+            className="group flex min-h-[245px] flex-col items-center justify-center rounded-lg border border-[#D8D6DC] bg-white px-5 text-center transition-colors hover:border-brand-300 hover:bg-[#FCFAFE]"
           >
-            <div className="flex items-start justify-between gap-4">
-              <div className="h-12 w-12 rounded-lg bg-brand-50 text-brand-500 flex items-center justify-center">
-                <Icon size={24} />
-              </div>
-              <ArrowRight size={19} className="text-muted transition-transform group-hover:translate-x-1 group-hover:text-brand-500" />
+            <div
+              className={`flex h-24 w-24 items-center justify-center rounded-full ${
+                index === 0
+                  ? "bg-[#EAF5F3] text-[#00584F]"
+                  : index === 1
+                    ? "bg-[#E8E9FF] text-[#2A2590]"
+                    : index === 2
+                      ? "bg-[#F8D8DD] text-[#8A214A]"
+                      : "bg-[#FFF6C9] text-[#946800]"
+              }`}
+            >
+              <Icon size={42} strokeWidth={2.2} />
             </div>
-            <h2 className="mt-5 text-xl font-black text-ink">{title}</h2>
-            <p className="mt-2 text-sm font-medium leading-6 text-muted">{text}</p>
+            <h2 className="mt-6 text-2xl font-extrabold text-[#3B393F]">{title}</h2>
           </Link>
         ))}
       </section>
 
-      <section className="mt-8 rounded-lg border border-brand-100 bg-brand-50 p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-xl font-black text-ink">Already have a job description?</h2>
-            <p className="mt-1 text-sm font-semibold text-muted">Use the existing analyzer to turn it into a resume improvement plan.</p>
+      <section className="mx-auto max-w-[1580px] px-6 pb-14 lg:px-10">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <h2 className="text-3xl font-extrabold text-[#333238]">Recent Resumes</h2>
+          <div className="flex flex-wrap gap-3">
+            <div className="flex h-14 min-w-[280px] items-center gap-3 rounded-lg border border-[#D1CED7] bg-white px-4 text-[#77737D]">
+              <Search size={22} />
+              <span className="text-xl font-semibold">Search Resumes</span>
+            </div>
+            <button className="flex h-14 w-14 items-center justify-center rounded-lg border border-[#A9A0B5] bg-white text-[#00584F]" aria-label="List view">
+              <ListFilter size={24} />
+            </button>
+            <button className="flex h-14 w-14 items-center justify-center rounded-lg border border-[#A9A0B5] bg-white text-[#00584F]" aria-label="Sort">
+              <SlidersHorizontal size={23} />
+            </button>
           </div>
-          <Link
-            to="/resume-builder/workspace?mode=job-description"
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white hover:bg-brand-600"
-          >
-            Match resume to job <ArrowRight size={17} />
-          </Link>
+        </div>
+
+        {recentResumes.length ? (
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {recentResumes.map((resume) => (
+            <Link
+              key={resume.id}
+              to="/resumes"
+              className="min-h-[220px] rounded-lg border border-[#D8D6DC] bg-white p-8 transition-colors hover:border-brand-300 hover:bg-[#FCFAFE]"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <h3 className="text-2xl font-black text-black">{resume.label}</h3>
+                <span className="text-2xl font-black leading-none text-[#77737D]">...</span>
+              </div>
+              <div className="mt-16 flex items-center gap-3 text-lg font-bold text-[#00584F]">
+                <BriefcaseBusiness size={20} />
+                Match a job
+              </div>
+              <div className="mt-3 text-lg font-semibold text-[#77737D]">
+                Edited: {new Date(resume.updated_at || resume.created_at).toLocaleDateString()}
+              </div>
+            </Link>
+          ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-[#D8D6DC] bg-[#FAFAFB] px-8 py-10">
+            <h3 className="text-2xl font-black text-[#333238]">No saved resumes yet</h3>
+            <p className="mt-2 max-w-2xl text-base font-semibold leading-7 text-[#77737D]">
+              Create, import, or customize a template, then save it to keep edited versions here.
+            </p>
+          </div>
+        )}
+
+        <div className="mt-8 flex flex-wrap gap-3">
+          {builderActions.slice(4).map(({ title, to, icon: Icon }) => (
+            <Link
+              key={title}
+              to={to}
+              className="inline-flex items-center gap-2 rounded-lg border border-[#D8D6DC] bg-white px-5 py-3 text-sm font-black text-[#333238] hover:border-brand-300 hover:bg-[#FCFAFE]"
+            >
+              <Icon size={18} className="text-brand-500" />
+              {title}
+              <ArrowRight size={17} className="text-[#77737D]" />
+            </Link>
+          ))}
         </div>
       </section>
     </div>

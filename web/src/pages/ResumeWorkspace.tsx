@@ -1137,18 +1137,18 @@ export default function ResumeWorkspace() {
   );
 
   return (
-    <div className="pb-10" data-testid="resume-workspace-screen">
-      <header className="mb-4 rounded-lg border border-[#E2DDEA] bg-white shadow-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EEEAF3] px-4 py-3">
+    <div className="-mx-4 -my-5 min-h-screen bg-white sm:-mx-6 lg:-mx-10 lg:-my-6" data-testid="resume-workspace-screen">
+      <header className="border-b border-[#DAD8DE] bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#DAD8DE] px-5 py-4 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <Link
               to="/resume-builder"
-              className="h-11 w-11 rounded-lg border border-[#DCD6E5] bg-white text-muted flex items-center justify-center hover:text-brand-500"
+              className="h-12 w-12 rounded-lg border border-[#D1CED7] bg-white text-[#3B393F] flex items-center justify-center hover:bg-[#F7F6F8] hover:text-brand-500"
               aria-label="Back to Resume Builder"
             >
               <ArrowLeft size={20} />
             </Link>
-            <h1 className="truncate text-2xl font-black text-ink">{title}</h1>
+            <h1 className="truncate text-2xl font-extrabold text-[#242228]">{title}</h1>
           </div>
           <div className="flex gap-2">
             {pro && (
@@ -1158,7 +1158,7 @@ export default function ResumeWorkspace() {
                   setCurrentSavedResumeLabel((current) => current || title);
                   setSavePromptOpen(true);
                 }}
-                className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-black text-white hover:bg-brand-600"
+                className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white hover:bg-brand-600"
               >
                 <FileText size={17} />
                 Save version
@@ -1167,19 +1167,19 @@ export default function ResumeWorkspace() {
             <button
               type="button"
               onClick={handleExportPDF}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#DCD6E5] bg-white px-4 py-2.5 text-sm font-black text-ink hover:bg-brand-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-5 py-3 text-sm font-black text-[#242228] hover:bg-[#F7F6F8]"
             >
               <Download size={17} />
               Export PDF
             </button>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-[#DCD6E5] bg-white px-4 py-2.5 text-sm font-black text-ink">
+            <button className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-5 py-3 text-sm font-black text-[#242228] hover:bg-[#F7F6F8]">
               <Menu size={17} />
               Menu
             </button>
           </div>
         </div>
 
-        <nav className="flex gap-2 overflow-x-auto px-4 py-3 shell-scroll" aria-label="Resume builder tools">
+        <nav className="flex gap-4 overflow-x-auto px-5 py-3 shell-scroll lg:px-8" aria-label="Resume builder tools">
           {tabs.map(({ id, label, icon: Icon, badge }) => {
             const displayBadge = id === "analyzer" ? analyzerBadge : badge;
             return (
@@ -1187,8 +1187,8 @@ export default function ResumeWorkspace() {
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
-              className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-3 text-sm font-black transition-colors ${
-                activeTab === id ? "bg-brand-50 text-brand-500 shadow-card" : "text-ink hover:bg-[#F7F5FA]"
+              className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-3 text-base font-extrabold transition-colors ${
+                activeTab === id ? "bg-brand-50 text-brand-500" : "text-[#00584F] hover:bg-[#F7F6F8]"
               }`}
             >
               <Icon size={19} />
@@ -1249,8 +1249,8 @@ export default function ResumeWorkspace() {
         </div>
       )}
 
-      <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)] xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,0.8fr)]">
-        <section className="min-w-0 overflow-hidden rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card md:max-h-[calc(100vh-220px)] md:overflow-y-auto shell-scroll">
+      <div className="grid min-w-0 md:grid-cols-[minmax(0,1fr)_minmax(360px,0.82fr)] xl:grid-cols-[minmax(0,0.95fr)_minmax(480px,0.82fr)]">
+        <section className="min-w-0 overflow-hidden border-r border-[#DAD8DE] bg-white p-5 md:max-h-[calc(100vh-158px)] md:overflow-y-auto lg:p-8 shell-scroll">
           {activeTab === "designer" ? (
             <div>
               <div className="mb-5 flex flex-wrap gap-5 border-b border-[#EEEAF3] pb-4 text-sm font-black text-muted">
@@ -1589,7 +1589,7 @@ export default function ResumeWorkspace() {
           )}
         </section>
 
-        <aside className="min-w-0 overflow-hidden md:max-h-[calc(100vh-220px)] md:overflow-y-auto shell-scroll">
+        <aside className="min-w-0 overflow-hidden bg-[#F7F7F8] p-5 md:max-h-[calc(100vh-158px)] md:overflow-y-auto lg:p-7 shell-scroll">
           {showPaywall ? (
             <PaywallBlock
               context={activeTab === "matcher" ? "matcher" : "analyzer"}
@@ -1603,7 +1603,7 @@ export default function ResumeWorkspace() {
           ) : activeTab === "analyzer" ? (
             <RecommendationList analysis={analysis} />
           ) : !hasResumeContent ? (
-            <div className="rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
+            <div className="rounded-lg border border-[#D8D6DC] bg-white p-5">
               <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Resume needed</div>
               <h2 className="mt-2 text-2xl font-black text-ink">Upload or paste your resume to start</h2>
               <p className="mt-2 text-sm font-semibold leading-6 text-muted">
@@ -1611,7 +1611,7 @@ export default function ResumeWorkspace() {
               </p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-[#E2DDEA] bg-[#F8F7FA] p-5 shadow-card">
+            <div className="overflow-hidden rounded-lg border border-[#D8D6DC] bg-white p-4">
               <ResumePreview resume={resume} pro={pro} />
             </div>
           )}
