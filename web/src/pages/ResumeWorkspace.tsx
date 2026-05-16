@@ -488,8 +488,28 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const normalizedLines = lines.map((line) => line.replace(/\s+/g, " ").trim());
-  const sectionHeadingPattern = /^(professional\s+summary|summary|profile|objective|skills|technical\s+skills|work\s+experience|professional\s+experience|experience|employment|projects|education|certifications|licenses|awards)$/i;
+  const normalizeSpacedHeading = (line: string) => {
+    const compact = line.replace(/\s+/g, "").toUpperCase();
+    if (!line.includes(" ") || !/^[A-Z&]+$/.test(compact)) return line;
+    const spacedHeadings: Record<string, string> = {
+      SUMMARY: "Summary",
+      PROFILE: "Profile",
+      OBJECTIVE: "Objective",
+      SKILLS: "Skills",
+      TECHNICALSKILLS: "Technical Skills",
+      WORKEXPERIENCE: "Work Experience",
+      PROFESSIONALEXPERIENCE: "Professional Experience",
+      EXPERIENCE: "Experience",
+      PROJECTS: "Projects",
+      EDUCATION: "Education",
+      CERTIFICATIONS: "Certifications",
+      LICENSES: "Licenses",
+      AWARDS: "Awards",
+    };
+    return spacedHeadings[compact] || line;
+  };
+  const normalizedLines = lines.map((line) => normalizeSpacedHeading(line.replace(/\s+/g, " ").trim()));
+  const sectionHeadingPattern = /^(professional\s+summary|summary|profile|objective|skills|technical\s+skills|work\s+experience|professional\s+experience|experience|employment|projects|education|certifications|licenses|awards):?$/i;
   const sectionIndex = (names: string[]) =>
     normalizedLines.findIndex((line) => names.some((name) => line.toLowerCase() === name.toLowerCase()));
   const nextSectionIndexAfter = (start: number) => {
@@ -504,9 +524,47 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
   const looksLikeSummarySentence = (line: string) =>
     line.length > 90 || /passionate|proven|experience|expertise|responsible|delivering|specializing|background/i.test(line);
   const firstLine = normalizedLines[0] || "Imported Resume";
-  const contactLine = normalizedLines.slice(1, 7).find((line) => /@|\d{3}|linkedin|github|\.com/i.test(line)) || "";
   const summaryIndex = sectionIndex(["Professional Summary", "Summary", "Profile", "Objective"]);
   const experienceIndex = sectionIndex(["Work Experience", "Professional Experience", "Experience", "Employment"]);
+  const skillsIndex = sectionIndex(["Skills", "Technical Skills"]);
+  const contactStart = normalizedLines.slice(1, 7).findIndex((line) => /@|\d{3}|linkedin|github|\.com/i.test(line));
+  const contactIndex = contactStart >= 0 ? contactStart + 1 : -1;
+  const contactParts = contactIndex >= 0 ? [normalizedLines[contactIndex]] : [];
+  if (contactIndex >= 0) {
+    const nextContactLine = normalizedLines[contactIndex + 1];
+    if (
+      nextContactLine &&
+      !sectionHeadingPattern.test(nextContactLine) &&
+      /linkedin|github|\.com|,\s*[A-Z]{2}\b|\|\s*[A-Z][A-Za-z\s]+,\s*[A-Z]{2}\b/i.test(nextContactLine)
+    ) {
+      contactParts.push(nextContactLine);
+    }
+  }
+  const contactLine = contactParts.join(" ").replace(/\s+\|\s*$/, "").trim();
+  const contactEndIndex = contactIndex >= 0 ? contactIndex + contactParts.length : -1;
+  const experienceLines = experienceIndex >= 0 ? normalizedLines.slice(experienceIndex + 1, nextSectionIndexAfter(experienceIndex)) : [];
+  const experienceContent = experienceLines.filter((line) => !sectionHeadingPattern.test(line));
+  const rolePattern = /engineer|designer|director|analyst|manager|coordinator|developer|specialist|assistant|associate|technician|administrator|consultant/i;
+  const dateRangePattern = /(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)?[a-z]*\.?\s*\d{4}\s*[-\u2013\u2014]\s*(present|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)?[a-z]*\.?\s*\d{4}|\d{2,4})/i;
+  const firstExperienceTitle =
+    experienceContent.find(
+      (line) =>
+        !/^[-*\u2022]/.test(line) &&
+        rolePattern.test(line),
+    ) || "";
+  const firstExperienceDates = experienceContent.find((line) => dateRangePattern.test(line)) || "";
+  const companyLocationLine =
+    experienceContent.find(
+      (line) =>
+        !/^[-*\u2022]/.test(line) &&
+        line !== firstExperienceTitle &&
+        line !== firstExperienceDates &&
+        !sectionHeadingPattern.test(line),
+    ) || "";
+  const splitCompanyLocation = companyLocationLine.match(/^(.+)\s+([A-Z][A-Za-z .'-]+,\s*[A-Z]{2}\b|Remote)$/);
+  const firstExperienceCompany = splitCompanyLocation?.[1] || companyLocationLine;
+  const firstExperienceLocation =
+    splitCompanyLocation?.[2] || experienceContent.find((line) => /,\s*[A-Z]{2}\b|remote/i.test(line)) || "";
   const summaryLines =
     summaryIndex >= 0
       ? normalizedLines
@@ -514,7 +572,7 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
           .map(cleanSectionNoise)
           .filter(Boolean)
       : normalizedLines
-          .slice(contactLine ? normalizedLines.indexOf(contactLine) + 1 : 1, experienceIndex > 0 ? experienceIndex : 8)
+          .slice(contactEndIndex >= 0 ? contactEndIndex : 1, experienceIndex > 0 ? experienceIndex : 8)
           .map(cleanSectionNoise)
           .filter((line) => line && !sectionHeadingPattern.test(line) && !/^[-*\u2022]/.test(line));
   const targetLine =
@@ -523,11 +581,21 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
       .find(
         (line) =>
           !sectionHeadingPattern.test(line) &&
+          line !== contactLine &&
           !looksLikeSummarySentence(line) &&
-          /engineer|designer|director|analyst|manager|coordinator|developer|specialist|assistant|associate|technician|administrator|consultant/i.test(line),
+          rolePattern.test(line),
       ) || "";
   const bulletLines = normalizedLines.filter((line) => /^[-*\u2022]/.test(line)).map((line) => line.replace(/^[-*\u2022]\s*/, ""));
   const fallbackBullets = experienceIndex >= 0 ? normalizedLines.slice(experienceIndex + 1, nextSectionIndexAfter(experienceIndex)) : normalizedLines.slice(0, 8);
+  const parsedSkills =
+    skillsIndex >= 0
+      ? normalizedLines
+          .slice(skillsIndex + 1, nextSectionIndexAfter(skillsIndex))
+          .flatMap((line) => line.split(/\s+\|\s+|,\s*|;\s*/))
+          .map((line) => line.replace(/^[A-Za-z /&]+:\s*/, ""))
+          .map((line) => line.trim())
+          .filter(Boolean)
+      : [];
   const summary = summaryLines
     .slice(0, 4)
     .join(" ")
@@ -538,16 +606,16 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
     templateId: "minimalist",
     candidateName: firstLine,
     contact: contactLine,
-    role: targetLine || "Customizable Resume Headline",
-    targetTitle: targetLine,
+    role: targetLine || firstExperienceTitle || "Customizable Resume Headline",
+    targetTitle: targetLine || firstExperienceTitle,
     summary,
-    skills: ["Review imported text and move skills into this section."],
+    skills: parsedSkills.length ? parsedSkills.slice(0, 16) : ["Review imported text and move skills into this section."],
     roles: [
       {
-        company: filename ? filename.replace(/\.[^.]+$/, "") : "Imported Experience",
-        title: targetLine || "Role Title",
-        dates: "",
-        location: "",
+        company: firstExperienceCompany || (filename ? filename.replace(/\.[^.]+$/, "") : "Imported Experience"),
+        title: firstExperienceTitle || targetLine || "Role Title",
+        dates: firstExperienceDates,
+        location: firstExperienceLocation,
         bullets: bulletLines.length ? bulletLines.slice(0, 8) : fallbackBullets.filter((line) => !sectionHeadingPattern.test(line)).slice(0, 8),
       },
     ],
