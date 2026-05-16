@@ -46,14 +46,38 @@ async function parsePDF(file: File): Promise<string> {
   for (let i = 1; i <= doc.numPages; i += 1) {
     const page = await doc.getPage(i);
     const content = await page.getTextContent();
-    const pageText = content.items
-      .map((it) => {
-        if ("str" in it) {
-          return `${it.str ?? ""}${"hasEOL" in it && it.hasEOL ? "\n" : " "}`;
-        }
-        return "";
+    type PdfTextItem = { str: string; x: number; y: number };
+    const items: PdfTextItem[] = content.items
+      .flatMap((it) => {
+        if (!("str" in it) || typeof it.str !== "string" || !it.str.trim()) return [];
+        const transform = "transform" in it && Array.isArray(it.transform) ? it.transform : [0, 0, 0, 0, 0, 0];
+        return [{
+          str: String(it.str).trim(),
+          x: Number(transform[4] || 0),
+          y: Number(transform[5] || 0),
+        }];
       })
-      .join("")
+      .sort((a, b) => (Math.abs(b.y - a.y) > 2 ? b.y - a.y : a.x - b.x));
+
+    const rows: Array<{ y: number; items: PdfTextItem[] }> = [];
+    items.forEach((item) => {
+      const row = rows.find((candidate) => Math.abs(candidate.y - item.y) <= 2);
+      if (row) row.items.push(item);
+      else rows.push({ y: item.y, items: [item] });
+    });
+
+    const pageText = rows
+      .map((row) =>
+        row.items
+          .sort((a, b) => a.x - b.x)
+          .map((item) => item.str)
+          .join(" ")
+          .replace(/\s+([,.;:])/g, "$1")
+          .replace(/•\s+/g, "• ")
+          .trim(),
+      )
+      .filter(Boolean)
+      .join("\n")
       .replace(/[ \t]+\n/g, "\n")
       .replace(/\n{3,}/g, "\n\n");
     parts.push(pageText);

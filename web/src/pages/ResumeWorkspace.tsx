@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -7,6 +7,8 @@ import {
   ArrowRight,
   ArrowUp,
   BriefcaseBusiness,
+  ChevronDown,
+  ChevronRight,
   CheckCircle2,
   Download,
   Eye,
@@ -18,6 +20,7 @@ import {
   Menu,
   Palette,
   PenLine,
+  Plus,
   ScrollText,
   Search,
   Sparkles,
@@ -110,6 +113,7 @@ const resumeTemplates = [
 type ResumeTemplate = (typeof resumeTemplates)[number];
 type DesignerPanel = "templates" | "sections";
 type ResumeSectionId = "summary" | "skills" | "experience" | "projects" | "education" | "certifications";
+type EditorSectionId = ResumeSectionId | "contact" | "target";
 type ResumeRole = {
   title: string;
   company: string;
@@ -143,6 +147,9 @@ const sectionLabels: Record<ResumeSectionId, string> = {
 };
 
 const defaultSectionOrder: ResumeSectionId[] = ["summary", "skills", "experience", "projects", "education", "certifications"];
+const PARSED_ROLE_TITLE_MAX_LENGTH = 70;
+const RESUME_PREVIEW_PAGE_HEIGHT = 828;
+const RESUME_PREVIEW_TWO_PAGE_HEIGHT = RESUME_PREVIEW_PAGE_HEIGHT * 2;
 
 const coverLetterTemplates = [
   {
@@ -389,9 +396,9 @@ function createResumeFromTemplate(template: ResumeTemplate): ResumeData {
 
 function initialTab(mode: string | null, tab: string | null): BuilderTab {
   if (tab === "designer" || tab === "analyzer" || tab === "matcher" || tab === "cover") return tab;
-  if (mode === "improve") return "analyzer";
+  if (mode === "improve") return "content";
   if (mode === "job-description") return "matcher";
-  if (mode === "template") return "designer";
+  if (mode === "template") return "content";
   if (mode === "cover-letter") return "cover";
   return "content";
 }
@@ -488,8 +495,44 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const normalizedLines = lines.map((line) => line.replace(/\s+/g, " ").trim());
-  const sectionHeadingPattern = /^(professional\s+summary|summary|profile|objective|skills|technical\s+skills|work\s+experience|professional\s+experience|experience|employment|projects|education|certifications|licenses|awards)$/i;
+  const normalizeSpacedHeading = (line: string) => {
+    const compact = line.replace(/\s+/g, "").toUpperCase();
+    if (!line.includes(" ") || !/^[A-Z&]+$/.test(compact)) return line;
+    const spacedHeadings: Record<string, string> = {
+      SUMMARY: "Summary",
+      PROFILE: "Profile",
+      OBJECTIVE: "Objective",
+      SKILLS: "Skills",
+      TECHNICALSKILLS: "Technical Skills",
+      WORKEXPERIENCE: "Work Experience",
+      PROFESSIONALEXPERIENCE: "Professional Experience",
+      EXPERIENCE: "Experience",
+      PROJECTS: "Projects",
+      EDUCATION: "Education",
+      CERTIFICATIONS: "Certifications",
+      LICENSES: "Licenses",
+      AWARDS: "Awards",
+    };
+    return spacedHeadings[compact] || line;
+  };
+  const normalizedLines = lines
+    .map((line) => normalizeSpacedHeading(line.replace(/\s+/g, " ").trim()))
+    .reduce<string[]>((acc, line) => {
+      const previous = acc[acc.length - 1];
+      const monthYear = /^(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}$/i;
+      const dashOnly = /^[-\u2013\u2014]$/;
+      if (previous && monthYear.test(previous) && dashOnly.test(line)) {
+        acc[acc.length - 1] = `${previous} -`;
+        return acc;
+      }
+      if (previous && /-$/.test(previous) && (/^present$/i.test(line) || monthYear.test(line))) {
+        acc[acc.length - 1] = `${previous} ${line}`.replace(/\s*-\s*/, " - ");
+        return acc;
+      }
+      acc.push(line);
+      return acc;
+    }, []);
+  const sectionHeadingPattern = /^(professional\s+summary|summary|profile|objective|skills|technical\s+skills|work\s+experience|professional\s+experience|experience|employment|projects|education|certifications|licenses|awards):?$/i;
   const sectionIndex = (names: string[]) =>
     normalizedLines.findIndex((line) => names.some((name) => line.toLowerCase() === name.toLowerCase()));
   const nextSectionIndexAfter = (start: number) => {
@@ -504,9 +547,99 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
   const looksLikeSummarySentence = (line: string) =>
     line.length > 90 || /passionate|proven|experience|expertise|responsible|delivering|specializing|background/i.test(line);
   const firstLine = normalizedLines[0] || "Imported Resume";
-  const contactLine = normalizedLines.slice(1, 7).find((line) => /@|\d{3}|linkedin|github|\.com/i.test(line)) || "";
   const summaryIndex = sectionIndex(["Professional Summary", "Summary", "Profile", "Objective"]);
   const experienceIndex = sectionIndex(["Work Experience", "Professional Experience", "Experience", "Employment"]);
+  const skillsIndex = sectionIndex(["Skills", "Technical Skills"]);
+  const projectsIndex = sectionIndex(["Projects"]);
+  const educationIndex = sectionIndex(["Education"]);
+  const certificationsIndex = sectionIndex(["Certifications", "Licenses"]);
+  const contactStart = normalizedLines.slice(1, 7).findIndex((line) => /@|\d{3}|linkedin|github|\.com/i.test(line));
+  const contactIndex = contactStart >= 0 ? contactStart + 1 : -1;
+  const contactParts = contactIndex >= 0 ? [normalizedLines[contactIndex]] : [];
+  if (contactIndex >= 0) {
+    const nextContactLine = normalizedLines[contactIndex + 1];
+    if (
+      nextContactLine &&
+      !sectionHeadingPattern.test(nextContactLine) &&
+      /linkedin|github|\.com|,\s*[A-Z]{2}\b|\|\s*[A-Z][A-Za-z\s]+,\s*[A-Z]{2}\b/i.test(nextContactLine)
+    ) {
+      contactParts.push(nextContactLine);
+    }
+  }
+  const contactLine = contactParts.join(" ").replace(/\s+\|\s*$/, "").trim();
+  const contactEndIndex = contactIndex >= 0 ? contactIndex + contactParts.length : -1;
+  const experienceLines = experienceIndex >= 0 ? normalizedLines.slice(experienceIndex + 1, nextSectionIndexAfter(experienceIndex)) : [];
+  const experienceContent = experienceLines.filter((line) => !sectionHeadingPattern.test(line));
+  const rolePattern = /engineer|designer|director|analyst|manager|coordinator|developer|specialist|assistant|associate|technician|administrator|consultant/i;
+  const dateRangePattern = /(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)?[a-z]*\.?\s*\d{4}\s*[-\u2013\u2014]\s*(present|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)?[a-z]*\.?\s*\d{4}|\d{2,4})/i;
+  const splitCompanyLocation = (line: string) => {
+    const remote = line.match(/^(.+)\s+(Remote)$/i);
+    if (remote) return { company: remote[1].trim(), location: remote[2].trim() };
+    const state = line.match(/^(.+),\s*([A-Z]{2})\b$/);
+    if (state) {
+      const words = state[1].trim().split(/\s+/);
+      const companySuffixes = ["inc", "llc", "ltd", "corp", "corporation", "company", "co", "solutions", "technologies", "systems", "group", "services", "management"];
+      let suffixIndex = -1;
+      words.forEach((word, index) => {
+        if (companySuffixes.includes(word.replace(/[.,]/g, "").toLowerCase())) suffixIndex = index;
+      });
+      if (suffixIndex >= 0 && suffixIndex < words.length - 1) {
+        return {
+          company: words.slice(0, suffixIndex + 1).join(" ").trim(),
+          location: `${words.slice(suffixIndex + 1).join(" ")}, ${state[2]}`.trim(),
+        };
+      }
+      return { company: words.slice(0, -1).join(" ").trim(), location: `${words.slice(-1).join(" ")}, ${state[2]}`.trim() };
+    }
+    return { company: line.trim(), location: "" };
+  };
+  const looksLikeRoleTitle = (line: string, nextLine?: string, followingLine?: string) =>
+    !/^[-*\u2022]/.test(line) &&
+    line.length <= PARSED_ROLE_TITLE_MAX_LENGTH &&
+    !/[.;:]$/.test(line) &&
+    !/^(architected|authored|built|collaborated|conducted|contributed|deployed|designed|engineered|established|imaged|implemented|improved|integrated|led|maintained|mentored|provided|reduced)\b/i.test(line) &&
+    rolePattern.test(line) &&
+    (Boolean(nextLine && dateRangePattern.test(nextLine)) || Boolean(followingLine && dateRangePattern.test(followingLine)));
+  const roles: ResumeRole[] = [];
+  for (let index = 0; index < experienceContent.length; index += 1) {
+    const line = experienceContent[index];
+    if (!looksLikeRoleTitle(line, experienceContent[index + 1], experienceContent[index + 2])) continue;
+    const title = line;
+    let dates = "";
+    let companyLine = "";
+    if (dateRangePattern.test(experienceContent[index + 1] || "")) {
+      dates = experienceContent[index + 1];
+      companyLine = experienceContent[index + 2] || "";
+      index += 2;
+    } else {
+      companyLine = experienceContent[index + 1] || "";
+      dates = experienceContent[index + 2] || "";
+      index += 2;
+    }
+    const { company, location } = splitCompanyLocation(companyLine);
+    const bullets: string[] = [];
+    while (index + 1 < experienceContent.length) {
+      const candidate = experienceContent[index + 1];
+      if (looksLikeRoleTitle(candidate, experienceContent[index + 2], experienceContent[index + 3])) break;
+      if (dateRangePattern.test(candidate) || sectionHeadingPattern.test(candidate)) break;
+      const cleaned = candidate.replace(/^[-*\u2022]\s*/, "").trim();
+      if (cleaned) {
+        const previous = bullets[bullets.length - 1];
+        if (
+          previous &&
+          !/[.!?]$/.test(previous) &&
+          /^[a-z0-9(]/.test(cleaned) &&
+          !cleaned.includes(";")
+        ) {
+          bullets[bullets.length - 1] = `${previous} ${cleaned}`;
+        } else {
+          bullets.push(cleaned);
+        }
+      }
+      index += 1;
+    }
+    roles.push({ title, company, dates, location, bullets });
+  }
   const summaryLines =
     summaryIndex >= 0
       ? normalizedLines
@@ -514,7 +647,7 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
           .map(cleanSectionNoise)
           .filter(Boolean)
       : normalizedLines
-          .slice(contactLine ? normalizedLines.indexOf(contactLine) + 1 : 1, experienceIndex > 0 ? experienceIndex : 8)
+          .slice(contactEndIndex >= 0 ? contactEndIndex : 1, experienceIndex > 0 ? experienceIndex : 8)
           .map(cleanSectionNoise)
           .filter((line) => line && !sectionHeadingPattern.test(line) && !/^[-*\u2022]/.test(line));
   const targetLine =
@@ -523,37 +656,92 @@ function createResumeFromPlainText(text: string, filename?: string): ResumeData 
       .find(
         (line) =>
           !sectionHeadingPattern.test(line) &&
+          line !== contactLine &&
           !looksLikeSummarySentence(line) &&
-          /engineer|designer|director|analyst|manager|coordinator|developer|specialist|assistant|associate|technician|administrator|consultant/i.test(line),
+          rolePattern.test(line),
       ) || "";
-  const bulletLines = normalizedLines.filter((line) => /^[-*\u2022]/.test(line)).map((line) => line.replace(/^[-*\u2022]\s*/, ""));
   const fallbackBullets = experienceIndex >= 0 ? normalizedLines.slice(experienceIndex + 1, nextSectionIndexAfter(experienceIndex)) : normalizedLines.slice(0, 8);
+  const parsedSkills =
+    skillsIndex >= 0
+      ? normalizedLines
+          .slice(skillsIndex + 1, nextSectionIndexAfter(skillsIndex))
+          .map((line) => line.replace(/^[-*\u2022]\s*/, ""))
+          .map((line) => line.trim())
+          .filter(Boolean)
+      : [];
+  const inferredCertificationIndex =
+    certificationsIndex >= 0
+      ? certificationsIndex
+      : normalizedLines.findIndex(
+          (line, index) =>
+            projectsIndex >= 0 &&
+            index > projectsIndex &&
+            (educationIndex < 0 || index < educationIndex) &&
+            /certified|certification|certificate|security\+|ccst/i.test(line),
+        );
+  const projectsEndIndex =
+    inferredCertificationIndex > projectsIndex
+      ? inferredCertificationIndex
+      : projectsIndex >= 0
+        ? nextSectionIndexAfter(projectsIndex)
+        : -1;
+  const projectLines =
+    projectsIndex >= 0
+      ? normalizedLines
+          .slice(projectsIndex + 1, projectsEndIndex)
+          .map((line) => line.replace(/^[-*\u2022]\s*/, "").trim())
+          .filter(Boolean)
+      : [];
+  const educationLines =
+    educationIndex >= 0
+      ? normalizedLines
+          .slice(educationIndex + 1, nextSectionIndexAfter(educationIndex))
+          .map((line) => line.replace(/^[-*\u2022]\s*/, "").trim())
+          .filter(Boolean)
+      : [];
+  const certificationLines =
+    inferredCertificationIndex >= 0
+      ? normalizedLines
+          .slice(
+            certificationsIndex >= 0 ? certificationsIndex + 1 : inferredCertificationIndex,
+            certificationsIndex >= 0
+              ? nextSectionIndexAfter(certificationsIndex)
+              : educationIndex > inferredCertificationIndex
+                ? educationIndex
+                : normalizedLines.length,
+          )
+          .map((line) => line.replace(/^[-*\u2022]\s*/, "").trim())
+          .filter(Boolean)
+      : [];
   const summary = summaryLines
     .slice(0, 4)
     .join(" ")
     .slice(0, 700) || "Imported resume text is ready to edit. Add a target role and refine each section before exporting.";
+  const firstExperienceTitle = roles[0]?.title || "";
 
   return {
     ...baseResumeData,
     templateId: "minimalist",
     candidateName: firstLine,
     contact: contactLine,
-    role: targetLine || "Customizable Resume Headline",
-    targetTitle: targetLine,
+    role: targetLine || firstExperienceTitle || "Customizable Resume Headline",
+    targetTitle: targetLine || firstExperienceTitle,
     summary,
-    skills: ["Review imported text and move skills into this section."],
-    roles: [
-      {
-        company: filename ? filename.replace(/\.[^.]+$/, "") : "Imported Experience",
-        title: targetLine || "Role Title",
-        dates: "",
-        location: "",
-        bullets: bulletLines.length ? bulletLines.slice(0, 8) : fallbackBullets.filter((line) => !sectionHeadingPattern.test(line)).slice(0, 8),
-      },
-    ],
-    projects: [],
-    education: normalizedLines.find((line) => /university|college|bachelor|master|degree|certificate/i.test(line)) || "",
-    certifications: normalizedLines.filter((line) => /certified|certification|certificate|security\+|ccst/i.test(line)).join("; "),
+    skills: parsedSkills.length ? parsedSkills : ["Review imported text and move skills into this section."],
+    roles: roles.length
+      ? roles
+      : [
+          {
+            company: filename ? filename.replace(/\.[^.]+$/, "") : "Imported Experience",
+            title: targetLine || "Role Title",
+            dates: "",
+            location: "",
+            bullets: fallbackBullets.filter((line) => !sectionHeadingPattern.test(line)).slice(0, 12),
+          },
+        ],
+    projects: projectLines,
+    education: educationLines.join("\n"),
+    certifications: certificationLines.join("\n"),
     sectionOrder: [...defaultSectionOrder],
     hiddenSections: [],
   };
@@ -565,9 +753,21 @@ function safeFilename(value: string) {
 
 function downloadResumePDF(resume: ResumeData) {
   const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 44;
-  const maxWidth = 612 - margin * 2;
+  const maxWidth = pageWidth - margin * 2;
+  const bottomMargin = 44;
+  const maxPages = 2;
   let y = 44;
+
+  const ensureSpace = (needed = 12) => {
+    if (y + needed <= pageHeight - bottomMargin) return true;
+    if (doc.getNumberOfPages() >= maxPages) return false;
+    doc.addPage();
+    y = margin;
+    return true;
+  };
 
   const line = (text: string, size = 9, style: "normal" | "bold" = "normal", gap = 12) => {
     doc.setFont("helvetica", style);
@@ -575,15 +775,16 @@ function downloadResumePDF(resume: ResumeData) {
     doc.setTextColor(0, 0, 0);
     const parts = doc.splitTextToSize(text || " ", maxWidth) as string[];
     parts.forEach((part) => {
-      if (y < 752) doc.text(part, margin, y);
+      if (ensureSpace(gap)) doc.text(part, margin, y);
       y += gap;
     });
   };
 
   const heading = (text: string) => {
     y += 8;
+    if (!ensureSpace(22)) return;
     line(text.toUpperCase(), 9, "bold", 11);
-    if (y < 752) doc.line(margin, y - 7, 612 - margin, y - 7);
+    doc.line(margin, y - 7, pageWidth - margin, y - 7);
   };
 
   line(resume.candidateName, 16, "bold", 18);
@@ -793,6 +994,8 @@ export default function ResumeWorkspace() {
   const [currentSavedResumeLabel, setCurrentSavedResumeLabel] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState(resumeTemplates[0].id);
   const [selectedCoverTemplate, setSelectedCoverTemplate] = useState(coverLetterTemplates[0].id);
+  const [showResumeSource, setShowResumeSource] = useState(false);
+  const [openSection, setOpenSection] = useState<EditorSectionId | null>(null);
   const [coverFields, setCoverFields] = useState(() => ({
     hiringManager: "Hiring Manager",
     companyName: "",
@@ -804,6 +1007,7 @@ export default function ResumeWorkspace() {
   const pro = isPro();
   const needsResumeSource = !savedResumeId && (mode === "new" || mode === "improve" || mode === "job-description");
   const hasResumeContent = hasMeaningfulResumeContent(resume);
+  const showSourcePanel = needsResumeSource && (!hasResumeContent || showResumeSource);
   const title = useMemo(() => {
     if (resume.targetTitle.trim()) return `${resume.targetTitle.trim()} Resume`;
     if (mode === "template") return "Template Resume";
@@ -811,7 +1015,7 @@ export default function ResumeWorkspace() {
     return "Untitled Resume";
   }, [mode, resume.targetTitle]);
 
-  const showPaywall = !pro && (activeTab === "analyzer" || activeTab === "matcher");
+  const showPaywall = hasResumeContent && !pro && (activeTab === "analyzer" || activeTab === "matcher");
   const analyzerBadge = analysis ? String(recommendationCountFromAnalysis(analysis)) : undefined;
 
   useEffect(() => {
@@ -825,6 +1029,8 @@ export default function ResumeWorkspace() {
         setResume(parseSavedResumeContent(saved.content));
         setCurrentSavedResumeId(saved.id);
         setCurrentSavedResumeLabel(saved.label);
+        setShowResumeSource(false);
+        setOpenSection(null);
         setAnalysis(null);
       } catch (e) {
         if (!cancelled) setSaveError(e instanceof Error ? e.message : "Could not load saved resume.");
@@ -862,6 +1068,8 @@ export default function ResumeWorkspace() {
     if (!template) return;
     setSelectedTemplate(template.id);
     setResume(createResumeFromTemplate(template));
+    setShowResumeSource(false);
+    setOpenSection(null);
     setAnalysis(null);
     setActiveTab("content");
   };
@@ -905,6 +1113,9 @@ export default function ResumeWorkspace() {
     setImportedFilename(result.filename);
     setResume(createResumeFromPlainText(result.text, result.filename));
     setSelectedTemplate("minimalist");
+    setShowResumeSource(false);
+    setOpenSection(null);
+    setActiveTab("content");
     setAnalysis(null);
     setSaveMessage("Resume imported. Review the fields, then analyze or export when ready.");
   };
@@ -918,6 +1129,9 @@ export default function ResumeWorkspace() {
     setImportedFilename("Pasted resume");
     setResume(createResumeFromPlainText(text, "Pasted resume"));
     setSelectedTemplate("minimalist");
+    setShowResumeSource(false);
+    setOpenSection(null);
+    setActiveTab("content");
     setAnalysis(null);
     setSaveError(null);
     setSaveMessage("Resume pasted. Review the fields, then analyze or export when ready.");
@@ -942,6 +1156,7 @@ export default function ResumeWorkspace() {
         state: {
           resume: buildResumeText(resume),
           jd: jobDescription.trim().length >= 30 ? jobDescription : "",
+          fromBuilder: true,
         },
       });
       return;
@@ -1014,6 +1229,138 @@ export default function ResumeWorkspace() {
     }));
   };
 
+  const addSectionItem = (sectionId: EditorSectionId) => {
+    setOpenSection(sectionId);
+    if (sectionId === "skills") {
+      setResume((current) => ({ ...current, skills: [...current.skills, ""] }));
+    } else if (sectionId === "experience") {
+      setResume((current) => ({
+        ...current,
+        roles: [...current.roles, { company: "", title: "", dates: "", location: "", bullets: [] }],
+      }));
+    } else if (sectionId === "projects") {
+      setResume((current) => ({ ...current, projects: [...current.projects, ""] }));
+    }
+    setAnalysis(null);
+    setSaveMessage(null);
+  };
+
+  const renderSectionEditor = (sectionId: EditorSectionId) => {
+    if (sectionId === "contact") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label="Contact Information"
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+        >
+          <div className="grid gap-3">
+            <input value={resume.candidateName} onChange={(e) => updateResume("candidateName", e.target.value)} className="min-h-11 w-full rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Name" />
+            <input value={resume.contact} onChange={(e) => updateResume("contact", e.target.value)} className="min-h-11 w-full rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Contact line" />
+            <input value={resume.role} onChange={(e) => updateResume("role", e.target.value)} className="min-h-11 w-full rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Custom headline" />
+          </div>
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "target") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label="Target Title"
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+        >
+          <input value={resume.targetTitle} onChange={(e) => updateResume("targetTitle", e.target.value)} className="min-h-11 w-full rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Example: Network Engineer" />
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "summary") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label={sectionLabels[sectionId]}
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+        >
+          <textarea value={resume.summary} onChange={(e) => updateResume("summary", e.target.value)} className="min-h-[120px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" />
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "skills") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label={sectionLabels[sectionId]}
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+          onAdd={() => addSectionItem(sectionId)}
+        >
+          <textarea value={resume.skills.join("\n")} onChange={(e) => updateResume("skills", e.target.value.split("\n"))} className="min-h-[140px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One skill group per line" />
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "experience") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label={sectionLabels[sectionId]}
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+          onAdd={() => addSectionItem(sectionId)}
+        >
+          <div className="space-y-4">
+            {resume.roles.map((role, index) => (
+              <div key={`${role.company}-${index}`} className="rounded-lg border border-[#EEEAF3] bg-[#FAFAFB] p-3">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <input value={role.company} onChange={(e) => updateRole(index, { company: e.target.value })} className="min-h-10 rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Company" />
+                  <input value={role.title} onChange={(e) => updateRole(index, { title: e.target.value })} className="min-h-10 rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Title" />
+                  <input value={role.location} onChange={(e) => updateRole(index, { location: e.target.value })} className="min-h-10 rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Location" />
+                  <input value={role.dates} onChange={(e) => updateRole(index, { dates: e.target.value })} className="min-h-10 rounded-lg border border-[#DCD6E5] px-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="Dates" />
+                </div>
+                <textarea value={role.bullets.join("\n")} onChange={(e) => updateRole(index, { bullets: e.target.value.split("\n").filter(Boolean) })} className="mt-3 min-h-[100px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One bullet per line" />
+              </div>
+            ))}
+          </div>
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "projects") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label={sectionLabels[sectionId]}
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+          onAdd={() => addSectionItem(sectionId)}
+        >
+          <textarea value={resume.projects.join("\n")} onChange={(e) => updateResume("projects", e.target.value.split("\n").filter(Boolean))} className="min-h-[110px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One project per line" />
+        </ResumeEditorSection>
+      );
+    }
+    if (sectionId === "education") {
+      return (
+        <ResumeEditorSection
+          sectionId={sectionId}
+          label={sectionLabels[sectionId]}
+          open={openSection === sectionId}
+          onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+        >
+          <textarea value={resume.education} onChange={(e) => updateResume("education", e.target.value)} className="min-h-[80px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" />
+        </ResumeEditorSection>
+      );
+    }
+    return (
+      <ResumeEditorSection
+        sectionId={sectionId}
+        label={sectionLabels[sectionId]}
+        open={openSection === sectionId}
+        onToggle={() => setOpenSection(openSection === sectionId ? null : sectionId)}
+      >
+        <textarea value={resume.certifications} onChange={(e) => updateResume("certifications", e.target.value)} className="min-h-[80px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" />
+      </ResumeEditorSection>
+    );
+  };
+
   useEffect(() => {
     if (!hasMeaningfulResumeContent(resume)) return;
     if ((activeTab === "analyzer" || activeTab === "matcher" || activeTab === "cover") && !analysis && !analysisLoading) {
@@ -1023,15 +1370,15 @@ export default function ResumeWorkspace() {
   }, [activeTab]);
 
   const resumeSourcePanel = (
-    <div className="mb-5 rounded-lg border border-[#E2DDEA] bg-white p-4 shadow-card">
+    <div className="rounded-lg border border-[#D8D6DC] bg-white p-5">
       <h2 className="text-xl font-black text-ink">Import Resume</h2>
       <p className="mt-2 text-sm font-semibold leading-6 text-muted">
         Upload a PDF, DOCX, TXT, or Markdown resume, or paste your resume text. LandIt will pull it into this same editor so you can clean it up before analyzing.
       </p>
-      <div className="mt-4">
+      <div className="mt-5">
         <ResumeFileInput onParsed={handleResumeParsed} />
       </div>
-      <div className="mt-4">
+      <div className="mt-5">
         <label className="text-xs font-black uppercase tracking-[0.16em] text-muted">Paste resume text</label>
         <textarea
           value={pastedResume}
@@ -1056,18 +1403,18 @@ export default function ResumeWorkspace() {
   );
 
   return (
-    <div className="pb-10" data-testid="resume-workspace-screen">
-      <header className="mb-4 rounded-lg border border-[#E2DDEA] bg-white shadow-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EEEAF3] px-4 py-3">
+    <div className="-mx-4 -my-5 min-h-screen bg-white sm:-mx-6 lg:-mx-10 lg:-my-6" data-testid="resume-workspace-screen">
+      <header className="border-b border-[#DAD8DE] bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#DAD8DE] px-5 py-2.5 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <Link
               to="/resume-builder"
-              className="h-11 w-11 rounded-lg border border-[#DCD6E5] bg-white text-muted flex items-center justify-center hover:text-brand-500"
+              className="h-10 w-10 rounded-lg border border-[#D1CED7] bg-white text-ink flex items-center justify-center hover:bg-brand-50 hover:text-brand-500"
               aria-label="Back to Resume Builder"
             >
               <ArrowLeft size={20} />
             </Link>
-            <h1 className="truncate text-2xl font-black text-ink">{title}</h1>
+            <h1 className="truncate text-xl font-extrabold text-ink">{title}</h1>
           </div>
           <div className="flex gap-2">
             {pro && (
@@ -1086,19 +1433,19 @@ export default function ResumeWorkspace() {
             <button
               type="button"
               onClick={handleExportPDF}
-              className="inline-flex items-center gap-2 rounded-lg border border-[#DCD6E5] bg-white px-4 py-2.5 text-sm font-black text-ink hover:bg-brand-50"
+              className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-4 py-2.5 text-sm font-black text-ink hover:bg-brand-50 hover:text-brand-500"
             >
               <Download size={17} />
               Export PDF
             </button>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-[#DCD6E5] bg-white px-4 py-2.5 text-sm font-black text-ink">
+            <button className="inline-flex items-center gap-2 rounded-lg border border-[#D1CED7] bg-white px-4 py-2.5 text-sm font-black text-ink hover:bg-brand-50 hover:text-brand-500">
               <Menu size={17} />
               Menu
             </button>
           </div>
         </div>
 
-        <nav className="flex gap-2 overflow-x-auto px-4 py-3 shell-scroll" aria-label="Resume builder tools">
+        <nav className="flex gap-3 overflow-x-auto px-5 py-2.5 shell-scroll lg:px-8" aria-label="Resume builder tools">
           {tabs.map(({ id, label, icon: Icon, badge }) => {
             const displayBadge = id === "analyzer" ? analyzerBadge : badge;
             return (
@@ -1106,8 +1453,8 @@ export default function ResumeWorkspace() {
               key={id}
               type="button"
               onClick={() => setActiveTab(id)}
-              className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-3 text-sm font-black transition-colors ${
-                activeTab === id ? "bg-brand-50 text-brand-500 shadow-card" : "text-ink hover:bg-[#F7F5FA]"
+              className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-base font-extrabold transition-colors ${
+                activeTab === id ? "bg-brand-50 text-brand-500" : "text-ink hover:bg-[#F7F5FA] hover:text-brand-500"
               }`}
             >
               <Icon size={19} />
@@ -1122,7 +1469,7 @@ export default function ResumeWorkspace() {
       </header>
 
       {(saveMessage || saveError) && (
-        <div className="mb-4">
+        <div className="border-b border-[#DAD8DE] bg-white px-5 py-2 lg:px-8">
           {saveMessage && <div className="rounded-lg bg-brand-50 p-3 text-sm font-bold text-brand-500">{saveMessage}</div>}
           {saveError && <div className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">{saveError}</div>}
         </div>
@@ -1168,8 +1515,8 @@ export default function ResumeWorkspace() {
         </div>
       )}
 
-      <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)] xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,0.8fr)]">
-        <section className="min-w-0 overflow-hidden rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card md:max-h-[calc(100vh-220px)] md:overflow-y-auto shell-scroll">
+      <div className="grid min-w-0 md:grid-cols-[minmax(0,1fr)_minmax(360px,0.84fr)] xl:grid-cols-[minmax(0,0.95fr)_minmax(540px,0.84fr)]">
+        <section className="min-w-0 overflow-hidden border-r border-[#DAD8DE] bg-white p-5 md:max-h-[calc(100vh-124px)] md:overflow-y-auto lg:px-8 lg:py-4 shell-scroll">
           {activeTab === "designer" ? (
             <div>
               <div className="mb-5 flex flex-wrap gap-5 border-b border-[#EEEAF3] pb-4 text-sm font-black text-muted">
@@ -1426,90 +1773,73 @@ export default function ResumeWorkspace() {
             </div>
           ) : (
             <div>
-              <div className="mb-5 rounded-lg border border-brand-100 bg-brand-50 p-4">
-                <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Start building</div>
-                <p className="mt-2 text-sm font-semibold text-muted">
-                  Fill in the essentials first. The analyzer will show what is missing before you apply.
-                </p>
-              </div>
-              {needsResumeSource && !hasResumeContent && resumeSourcePanel}
-              {(!needsResumeSource || hasResumeContent) && (
-              <>
-              {needsResumeSource && hasResumeContent && resumeSourcePanel}
-              <div className="space-y-2">
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3" open>
-                  <summary className="cursor-pointer text-lg font-black text-ink">Contact Information</summary>
-                  <div className="mt-3 grid gap-3">
-                    <input value={resume.candidateName} onChange={(e) => updateResume("candidateName", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Name" />
-                    <input value={resume.contact} onChange={(e) => updateResume("contact", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Contact line" />
-                    <input value={resume.role} onChange={(e) => updateResume("role", e.target.value)} className="min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Custom headline" />
+              {showSourcePanel ? (
+                <div className="mx-auto max-w-[820px] py-5">
+                  {hasResumeContent && (
+                    <button
+                      type="button"
+                      onClick={() => setShowResumeSource(false)}
+                      className="mb-4 rounded-lg border border-[#DCD6E5] bg-white px-4 py-2 text-sm font-black text-ink hover:bg-brand-50"
+                    >
+                      Back to editor
+                    </button>
+                  )}
+                  {resumeSourcePanel}
+                </div>
+              ) : (
+                <>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Editor</div>
+                      <p className="mt-1 text-sm font-semibold text-muted">Open a section to edit fields. The preview updates as you go.</p>
+                    </div>
+                    {needsResumeSource && (
+                      <button
+                        type="button"
+                        onClick={() => setShowResumeSource(true)}
+                        className="rounded-lg border border-[#DCD6E5] bg-white px-4 py-2 text-sm font-black text-brand-500 hover:bg-brand-50"
+                      >
+                        Import another resume
+                      </button>
+                    )}
                   </div>
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3" open>
-                  <summary className="cursor-pointer text-lg font-black text-ink">Target Title</summary>
-                  <input value={resume.targetTitle} onChange={(e) => updateResume("targetTitle", e.target.value)} className="mt-3 min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300" placeholder="Example: Network Engineer" />
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3" open>
-                  <summary className="cursor-pointer text-lg font-black text-ink">Professional Summary</summary>
-                  <textarea value={resume.summary} onChange={(e) => updateResume("summary", e.target.value)} className="mt-3 min-h-[120px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300" />
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3">
-                  <summary className="cursor-pointer text-lg font-black text-ink">Skills & Interests</summary>
-                  <textarea value={resume.skills.join("\n")} onChange={(e) => updateResume("skills", e.target.value.split("\n").filter(Boolean))} className="mt-3 min-h-[150px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One skill group per line" />
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3" open>
-                  <summary className="cursor-pointer text-lg font-black text-ink">Work Experience</summary>
-                  <div className="mt-3 space-y-4">
-                    {resume.roles.map((role, index) => (
-                      <div key={`${role.company}-${index}`} className="rounded-lg bg-[#F8F7FA] p-4">
-                        <div className="grid gap-3 md:grid-cols-2">
-                          <input value={role.company} onChange={(e) => updateRole(index, { company: e.target.value })} className="min-h-11 rounded-lg border border-[#DCD6E5] px-3 text-sm font-bold outline-none focus:border-brand-300" placeholder="Company" />
-                          <input value={role.title} onChange={(e) => updateRole(index, { title: e.target.value })} className="min-h-11 rounded-lg border border-[#DCD6E5] px-3 text-sm font-bold outline-none focus:border-brand-300" placeholder="Title" />
-                          <input value={role.location} onChange={(e) => updateRole(index, { location: e.target.value })} className="min-h-11 rounded-lg border border-[#DCD6E5] px-3 text-sm font-bold outline-none focus:border-brand-300" placeholder="Location" />
-                          <input value={role.dates} onChange={(e) => updateRole(index, { dates: e.target.value })} className="min-h-11 rounded-lg border border-[#DCD6E5] px-3 text-sm font-bold outline-none focus:border-brand-300" placeholder="Dates" />
-                        </div>
-                        <textarea value={role.bullets.join("\n")} onChange={(e) => updateRole(index, { bullets: e.target.value.split("\n").filter(Boolean) })} className="mt-3 min-h-[120px] w-full rounded-lg border border-[#DCD6E5] p-3 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One bullet per line" />
-                      </div>
-                    ))}
+                  <div className="border-y border-[#D4D1DA]">
+                    {renderSectionEditor("contact")}
+                    {renderSectionEditor("target")}
+                    {resume.sectionOrder.filter((id) => !resume.hiddenSections.includes(id)).map((sectionId) => renderSectionEditor(sectionId))}
                   </div>
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3">
-                  <summary className="cursor-pointer text-lg font-black text-ink">Projects</summary>
-                  <textarea value={resume.projects.join("\n")} onChange={(e) => updateResume("projects", e.target.value.split("\n").filter(Boolean))} className="mt-3 min-h-[110px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300" placeholder="One project per line" />
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3">
-                  <summary className="cursor-pointer text-lg font-black text-ink">Education</summary>
-                  <textarea value={resume.education} onChange={(e) => updateResume("education", e.target.value)} className="mt-3 min-h-[80px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300" />
-                </details>
-                <details className="rounded-lg border border-[#EEEAF3] bg-white px-4 py-3">
-                  <summary className="cursor-pointer text-lg font-black text-ink">Certifications</summary>
-                  <textarea value={resume.certifications} onChange={(e) => updateResume("certifications", e.target.value)} className="mt-3 min-h-[80px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300" />
-                </details>
-              </div>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={handleAnalyzeResume}
-                  className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white hover:bg-brand-600"
-                >
-                  Analyze resume <ArrowRight size={17} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("matcher")}
-                  className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-white px-5 py-3 text-sm font-black text-brand-500 hover:bg-brand-50"
-                >
-                  Match to a job
-                </button>
-              </div>
-              </>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={handleAnalyzeResume}
+                      className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white hover:bg-brand-600"
+                    >
+                      Analyze resume <ArrowRight size={17} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("matcher")}
+                      className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-white px-5 py-3 text-sm font-black text-brand-500 hover:bg-brand-50"
+                    >
+                      Match to a job
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           )}
         </section>
 
-        <aside className="min-w-0 overflow-hidden md:max-h-[calc(100vh-220px)] md:overflow-y-auto shell-scroll">
-          {showPaywall ? (
+        <aside className="min-w-0 overflow-hidden bg-[#F4F4F5] p-4 md:max-h-[calc(100vh-124px)] md:overflow-y-auto lg:p-6 shell-scroll">
+          {!hasResumeContent ? (
+            <div className="rounded-lg border border-[#D8D6DC] bg-white p-5">
+              <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Resume needed</div>
+              <h2 className="mt-2 text-2xl font-black text-ink">Upload or paste your resume to start</h2>
+              <p className="mt-2 text-sm font-semibold leading-6 text-muted">
+                The editable preview will appear here after LandIt parses your resume text.
+              </p>
+            </div>
+          ) : showPaywall ? (
             <PaywallBlock
               context={activeTab === "matcher" ? "matcher" : "analyzer"}
               analysis={analysis}
@@ -1521,21 +1851,56 @@ export default function ResumeWorkspace() {
             <CoverLetterPreview fields={coverFields} resume={resume} targetTitle={jobTitle || resume.targetTitle} pro={pro} />
           ) : activeTab === "analyzer" ? (
             <RecommendationList analysis={analysis} />
-          ) : !hasResumeContent ? (
-            <div className="rounded-lg border border-[#E2DDEA] bg-white p-5 shadow-card">
-              <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Resume needed</div>
-              <h2 className="mt-2 text-2xl font-black text-ink">Upload or paste your resume to start</h2>
-              <p className="mt-2 text-sm font-semibold leading-6 text-muted">
-                The editable preview will appear here after LandIt parses your resume text.
-              </p>
-            </div>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-[#E2DDEA] bg-[#F8F7FA] p-5 shadow-card">
+            <div className="overflow-hidden rounded-lg border border-[#D8D6DC] bg-white p-4">
               <ResumePreview resume={resume} pro={pro} />
             </div>
           )}
         </aside>
       </div>
+    </div>
+  );
+}
+
+function ResumeEditorSection({
+  sectionId,
+  label,
+  open,
+  onToggle,
+  onAdd,
+  children,
+}: {
+  sectionId: EditorSectionId;
+  label: string;
+  open: boolean;
+  onToggle: () => void;
+  onAdd?: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="border-b border-[#D4D1DA] last:border-b-0" data-editor-section-id={sectionId}>
+      <div className="flex min-h-[84px] items-center gap-3">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex min-w-0 flex-1 items-center gap-3 py-4 text-left text-[22px] font-medium text-ink hover:text-brand-500"
+          aria-expanded={open}
+        >
+          {open ? <ChevronDown size={28} strokeWidth={1.9} /> : <ChevronRight size={28} strokeWidth={1.9} />}
+          <span className="truncate">{label}</span>
+        </button>
+        {onAdd && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-brand-500 hover:bg-brand-50"
+            aria-label={`Add ${label}`}
+          >
+            <Plus size={25} strokeWidth={2.2} />
+          </button>
+        )}
+      </div>
+      {open && <div className="pb-5 pl-11 pr-2">{children}</div>}
     </div>
   );
 }
@@ -1552,22 +1917,26 @@ function ResumePreview({
   const visibleSections = resume.sectionOrder.filter((sectionId) => !resume.hiddenSections.includes(sectionId));
   return (
     <div
-      className={`relative mx-auto overflow-hidden bg-white text-black shadow-card ${
-        compact ? "w-full p-3" : "w-full max-w-[640px] rounded-lg border border-[#E2DDEA] p-6"
+      className={`relative mx-auto bg-white text-black shadow-card ${
+        compact ? "w-full p-3" : "w-full max-w-[620px] rounded-lg border border-[#E2DDEA] p-5"
       }`}
       style={{
-        aspectRatio: "8.5 / 11",
+        aspectRatio: compact ? "8.5 / 11" : undefined,
         fontFamily: "Arial, Helvetica, sans-serif",
+        maxHeight: compact ? undefined : RESUME_PREVIEW_TWO_PAGE_HEIGHT,
+        minHeight: compact ? undefined : RESUME_PREVIEW_PAGE_HEIGHT,
+        overflow: "hidden",
       }}
       data-testid="resume-page-preview"
     >
       {!pro && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex -rotate-12 items-center justify-center opacity-[0.08]">
-          <div className={`${compact ? "text-2xl" : "text-6xl"} font-black uppercase tracking-[0.2em] text-black`}>
+        <div className="pointer-events-none absolute inset-0 z-10 flex -rotate-12 items-center justify-center opacity-[0.045]">
+          <div className={`${compact ? "text-2xl" : "text-5xl"} font-black uppercase tracking-[0.2em] text-black`}>
             LandIt Preview
           </div>
         </div>
       )}
+      {!compact && <div className="pointer-events-none absolute inset-x-0 border-t border-dashed border-[#D8D1E3]" style={{ top: RESUME_PREVIEW_PAGE_HEIGHT }} />}
       <h2 className={`${compact ? "text-[10px]" : "text-xl"} font-bold text-black`}>{resume.candidateName}</h2>
       <p className={`${compact ? "text-[6px]" : "text-xs"} mt-1 font-bold text-black`}>{resume.role}</p>
       <p className={`${compact ? "text-[5px]" : "text-[11px]"} mt-1 font-normal text-black`}>{resume.contact}</p>
