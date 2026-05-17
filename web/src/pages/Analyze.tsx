@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
 import { Sparkles, Zap, ArrowLeft, Loader2, Crown } from "lucide-react";
-import { DAILY_LIMIT, incrementQuota, isPro, quotaStatus, saveAnalysis } from "../storage";
-import { analyzeJob } from "../api";
+import { DAILY_LIMIT, getDeviceId, incrementQuota, isPro, quotaStatus, saveAnalysis } from "../storage";
+import { analyzeJob, updateSavedJob } from "../api";
 import type { Analysis } from "../types";
 import AnalysisView from "../components/AnalysisView";
 import ResumeFileInput from "../components/ResumeFileInput";
 import { track } from "../analytics";
+import { createJobHandoff, findPlaceholderJob, readStoredJobHandoff } from "../jobSearchData";
 
 export default function Analyze() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [jd, setJd] = useState("");
   const [resume, setResume] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,9 +25,12 @@ export default function Analyze() {
   useEffect(() => {
     setRemaining(quotaStatus().remaining);
     setPro(isPro());
-    const state = location.state as { resume?: string; jd?: string; fromBuilder?: boolean } | null;
+    const state = location.state as { resume?: string; jd?: string; fromBuilder?: boolean; savedJobId?: string; resumeId?: string; resumeLabel?: string } | null;
+    const queryJob = findPlaceholderJob(searchParams.get("jobId"));
+    const jobHandoff =
+      searchParams.get("jobHandoff") === "1" ? (queryJob ? createJobHandoff(queryJob) : readStoredJobHandoff()) : null;
     if (state?.resume) setResume(state.resume);
-    if (state?.jd) setJd(state.jd);
+    if (state?.jd || jobHandoff?.jd || jobHandoff?.jobDescription) setJd(state?.jd || jobHandoff?.jd || jobHandoff?.jobDescription || "");
     if (state?.fromBuilder && state.resume && !state.jd) {
       setHandoffNotice("Your resume is loaded from Resume Builder. Paste the job description here to run the full match analysis.");
     }
@@ -51,6 +56,18 @@ export default function Analyze() {
     try {
       const data = await analyzeJob(jd, resume);
       saveAnalysis(data);
+      const savedJobId = (location.state as { savedJobId?: string } | null)?.savedJobId || searchParams.get("savedJobId");
+      if (savedJobId && pro) {
+        try {
+          await updateSavedJob(savedJobId, getDeviceId(), {
+            analysis_id: data.id,
+            resume_id: (location.state as { resumeId?: string } | null)?.resumeId,
+            resume_label: (location.state as { resumeLabel?: string } | null)?.resumeLabel,
+          });
+        } catch {
+          // The analysis should still be shown even if the tracker attachment fails.
+        }
+      }
       if (!pro) incrementQuota();
       setRemaining(quotaStatus().remaining);
       setResult(data);

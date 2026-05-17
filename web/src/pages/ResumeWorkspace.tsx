@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
@@ -31,6 +31,7 @@ import { analyzeJob, createResume, listResumes, updateResume as updateSavedResum
 import ResumeFileInput from "../components/ResumeFileInput";
 import type { ParseResult } from "../parseResume";
 import type { Analysis } from "../types";
+import { createJobHandoff, findPlaceholderJob, readStoredJobHandoff, type JobSearchHandoff } from "../jobSearchData";
 
 type BuilderTab = "content" | "designer" | "analyzer" | "matcher" | "cover";
 
@@ -136,7 +137,6 @@ type ResumeData = {
   sectionOrder: ResumeSectionId[];
   hiddenSections: ResumeSectionId[];
 };
-
 const sectionLabels: Record<ResumeSectionId, string> = {
   summary: "Professional Summary",
   skills: "Skills & Interests",
@@ -154,9 +154,8 @@ const RESUME_PREVIEW_TWO_PAGE_HEIGHT = RESUME_PREVIEW_PAGE_HEIGHT * 2;
 const coverLetterTemplates = [
   {
     id: "tech",
-    name: "Tech Cover Letter",
-    label: "Engineering",
-    roleLine: "Software Engineer | Full-Stack | Cloud | Platform",
+    name: "Template 1",
+    label: "General",
     opening:
       "I am writing to express my interest in the role at your company. With experience building scalable systems and improving reliability, I have a track record of delivering technical solutions that create measurable impact.",
     body:
@@ -166,9 +165,8 @@ const coverLetterTemplates = [
   },
   {
     id: "creative",
-    name: "Creative Cover Letter",
-    label: "Brand / Creative",
-    roleLine: "Creative Professional | Brand Strategy | Storytelling",
+    name: "Template 2",
+    label: "General",
     opening:
       "I am writing to express my interest in the role at your company. My background centers on turning ambiguous briefs into clear, compelling work that connects with the right audience.",
     body:
@@ -178,9 +176,8 @@ const coverLetterTemplates = [
   },
   {
     id: "career-pivot",
-    name: "Career Pivot Cover Letter",
-    label: "Transition",
-    roleLine: "Transitioning Professional | Transferable Skills | Growth",
+    name: "Template 3",
+    label: "General",
     opening:
       "I am writing to express my interest in the role at your company. I am making a deliberate move into this field, backed by focused learning, hands-on projects, and transferable experience.",
     body:
@@ -970,17 +967,26 @@ function RecommendationList({ analysis }: { analysis: Analysis | null }) {
 
 export default function ResumeWorkspace() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const mode = searchParams.get("mode");
   const savedResumeId = searchParams.get("resume_id");
-  const [activeTab, setActiveTab] = useState<BuilderTab>(() => initialTab(mode, searchParams.get("tab")));
+  const jobId = searchParams.get("jobId") || "";
+  const queryJob = findPlaceholderJob(searchParams.get("jobId"));
+  const handoff =
+    (location.state as JobSearchHandoff | null) ||
+    (searchParams.get("jobHandoff") === "1" ? (queryJob ? createJobHandoff(queryJob) : readStoredJobHandoff()) : null);
+  const handoffDescription = handoff?.jobDescription || handoff?.jd || "";
+  const [activeTab, setActiveTab] = useState<BuilderTab>(() =>
+    handoff?.workflow === "cover" ? "cover" : initialTab(mode, searchParams.get("tab"))
+  );
   const [designerPanel, setDesignerPanel] = useState<DesignerPanel>("templates");
   const [resume, setResume] = useState<ResumeData>(() => {
     return mode === "template" ? createResumeFromTemplate(resumeTemplates[0]) : createBlankResume();
   });
-  const [jobTitle, setJobTitle] = useState("");
-  const [company, setCompany] = useState("");
-  const [jobDescription, setJobDescription] = useState("");
+  const [jobTitle, setJobTitle] = useState(handoff?.job?.title || "");
+  const [company, setCompany] = useState(handoff?.job?.company || "");
+  const [jobDescription, setJobDescription] = useState(handoffDescription);
   const [pastedResume, setPastedResume] = useState("");
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -995,11 +1001,14 @@ export default function ResumeWorkspace() {
   const [selectedTemplate, setSelectedTemplate] = useState(resumeTemplates[0].id);
   const [selectedCoverTemplate, setSelectedCoverTemplate] = useState(coverLetterTemplates[0].id);
   const [showResumeSource, setShowResumeSource] = useState(false);
+  const [coverResumeAttachMode, setCoverResumeAttachMode] = useState<"closed" | "upload" | "paste">("closed");
   const [openSection, setOpenSection] = useState<EditorSectionId | null>(null);
   const [coverFields, setCoverFields] = useState(() => ({
+    senderName: "",
+    senderTitle: "",
+    senderContact: "",
     hiringManager: "Hiring Manager",
-    companyName: "",
-    roleLine: coverLetterTemplates[0].roleLine,
+    companyName: handoff?.job?.company || "",
     opening: coverLetterTemplates[0].opening,
     body: coverLetterTemplates[0].body,
     closing: coverLetterTemplates[0].closing,
@@ -1017,6 +1026,13 @@ export default function ResumeWorkspace() {
 
   const showPaywall = hasResumeContent && !pro && (activeTab === "analyzer" || activeTab === "matcher");
   const analyzerBadge = analysis ? String(recommendationCountFromAnalysis(analysis)) : undefined;
+  const coverPreviewResume: ResumeData = {
+    ...resume,
+    candidateName: coverFields.senderName || resume.candidateName || "Your Name",
+    contact: coverFields.senderContact || resume.contact || "your.email@example.com | phone | location",
+    role: coverFields.senderTitle,
+    targetTitle: resume.targetTitle || jobTitle,
+  };
 
   useEffect(() => {
     if (!savedResumeId || !pro) return;
@@ -1026,7 +1042,16 @@ export default function ResumeWorkspace() {
       try {
         const saved = (await listResumes(getDeviceId())).find((item) => item.id === savedResumeId);
         if (!saved || cancelled) return;
-        setResume(parseSavedResumeContent(saved.content));
+        const parsedResume = parseSavedResumeContent(saved.content);
+        setResume(parsedResume);
+        if (activeTab === "cover") {
+          setCoverFields((current) => ({
+            ...current,
+            senderName: current.senderName || parsedResume.candidateName,
+            senderTitle: current.senderTitle || parsedResume.role || parsedResume.targetTitle,
+            senderContact: current.senderContact || parsedResume.contact,
+          }));
+        }
         setCurrentSavedResumeId(saved.id);
         setCurrentSavedResumeLabel(saved.label);
         setShowResumeSource(false);
@@ -1040,11 +1065,12 @@ export default function ResumeWorkspace() {
     return () => {
       cancelled = true;
     };
-  }, [savedResumeId, pro]);
+  }, [savedResumeId, pro, activeTab]);
 
   const runBuilderAnalysis = async () => {
     setAnalysisError(null);
-    if (!hasMeaningfulResumeContent(resume)) {
+    const canRunCoverFromJob = activeTab === "cover" && jobDescription.trim().length >= 30;
+    if (!hasMeaningfulResumeContent(resume) && !canRunCoverFromJob) {
       setAnalysisError("Upload or paste a resume first.");
       return;
     }
@@ -1054,10 +1080,12 @@ export default function ResumeWorkspace() {
         (activeTab === "matcher" || activeTab === "cover") && jobDescription.trim().length >= 30
           ? jobDescription
           : buildResumeQualityPrompt(resume.targetTitle, mode);
-      const result = await analyzeJob(prompt, buildResumeText(resume));
+      const result = await analyzeJob(prompt, hasMeaningfulResumeContent(resume) ? buildResumeText(resume) : "");
       setAnalysis(result);
+      return result;
     } catch (e) {
       setAnalysisError(e instanceof Error ? e.message : "Could not run the analyzer. Try again.");
+      return null;
     } finally {
       setAnalysisLoading(false);
     }
@@ -1137,6 +1165,47 @@ export default function ResumeWorkspace() {
     setSaveMessage("Resume pasted. Review the fields, then analyze or export when ready.");
   };
 
+  const handleCoverResumeParsed = (result: ParseResult) => {
+    const parsedResume = createResumeFromPlainText(result.text, result.filename);
+    setImportedFilename(result.filename);
+    setResume(parsedResume);
+    setCoverFields((current) => ({
+      ...current,
+      senderName: current.senderName || parsedResume.candidateName,
+      senderTitle: current.senderTitle || parsedResume.role || parsedResume.targetTitle,
+      senderContact: current.senderContact || parsedResume.contact,
+    }));
+    setSelectedTemplate("minimalist");
+    setShowResumeSource(false);
+    setCoverResumeAttachMode("closed");
+    setAnalysis(null);
+    setSaveError(null);
+    setSaveMessage("Resume context attached for this cover letter.");
+  };
+
+  const handleCoverPastedResume = () => {
+    const text = pastedResume.trim();
+    if (!text) {
+      setSaveError("Paste your resume text first.");
+      return;
+    }
+    const parsedResume = createResumeFromPlainText(text, "Pasted resume");
+    setImportedFilename("Pasted resume");
+    setResume(parsedResume);
+    setCoverFields((current) => ({
+      ...current,
+      senderName: current.senderName || parsedResume.candidateName,
+      senderTitle: current.senderTitle || parsedResume.role || parsedResume.targetTitle,
+      senderContact: current.senderContact || parsedResume.contact,
+    }));
+    setSelectedTemplate("minimalist");
+    setShowResumeSource(false);
+    setCoverResumeAttachMode("closed");
+    setAnalysis(null);
+    setSaveError(null);
+    setSaveMessage("Resume context attached for this cover letter.");
+  };
+
   const handleExportPDF = () => {
     if (!pro) {
       navigate("/pro");
@@ -1188,30 +1257,30 @@ export default function ResumeWorkspace() {
     }
   };
 
+  const openSavePrompt = () => {
+    setCurrentSavedResumeLabel((current) => current || title);
+    setSavePromptOpen(true);
+  };
+
   const applyCoverTemplate = (templateId: string) => {
     const template = coverLetterTemplates.find((item) => item.id === templateId);
     if (!template) return;
     setSelectedCoverTemplate(template.id);
     setCoverFields((current) => ({
       ...current,
-      roleLine: template.roleLine,
       opening: template.opening,
       body: template.body,
       closing: template.closing,
     }));
   };
 
-  const applyAiCoverSuggestions = () => {
-    if (!analysis) {
-      runBuilderAnalysis();
-      return;
-    }
+  const applyCoverSuggestionsFromAnalysis = (sourceAnalysis: Analysis) => {
     const strengths = uniqueItems([
-      ...analysis.required_skills.slice(0, 2),
-      ...analysis.key_skills.technical.slice(0, 2),
+      ...sourceAnalysis.required_skills.slice(0, 2),
+      ...sourceAnalysis.key_skills.technical.slice(0, 2),
     ]).slice(0, 3);
-    const gap = analysis.missing_skills[0];
-    const bulletEvidence = analysis.suggested_bullets
+    const gap = sourceAnalysis.missing_skills[0];
+    const bulletEvidence = sourceAnalysis.suggested_bullets
       .slice(0, 2)
       .map((bullet) => sentenceFragment(bullet.after || bullet.before))
       .filter(Boolean);
@@ -1227,6 +1296,24 @@ export default function ResumeWorkspace() {
         ? `I would welcome the opportunity to discuss how my experience fits the role, especially as your team continues to prioritize ${gap} and related platform reliability goals.`
         : current.closing,
     }));
+  };
+
+  const generateCoverLetter = async () => {
+    setAnalysisError(null);
+    if (!jobDescription.trim() || jobDescription.trim().length < 30) {
+      setAnalysisError("Attach or paste a job description before generating a tailored cover letter.");
+      return;
+    }
+    const nextAnalysis = await runBuilderAnalysis();
+    if (nextAnalysis) applyCoverSuggestionsFromAnalysis(nextAnalysis);
+  };
+
+  const applyAiCoverSuggestions = () => {
+    if (!analysis) {
+      void generateCoverLetter();
+      return;
+    }
+    applyCoverSuggestionsFromAnalysis(analysis);
   };
 
   const addSectionItem = (sectionId: EditorSectionId) => {
@@ -1420,14 +1507,12 @@ export default function ResumeWorkspace() {
             {pro && (
               <button
                 type="button"
-                onClick={() => {
-                  setCurrentSavedResumeLabel((current) => current || title);
-                  setSavePromptOpen(true);
-                }}
+                onClick={openSavePrompt}
+                disabled={!hasResumeContent}
                 className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-black text-white hover:bg-brand-600"
               >
                 <FileText size={17} />
-                Save version
+                Save to Saved Resumes
               </button>
             )}
             <button
@@ -1644,6 +1729,79 @@ export default function ResumeWorkspace() {
                       Draft only: proofread, personalize, and edit this cover letter before submitting it. Do not send the generated version as-is.
                     </div>
                   </div>
+                  {(jobTitle.trim() || company.trim() || jobDescription.trim()) && (
+                    <div className="mt-4 rounded-lg border border-brand-100 bg-white p-4 shadow-card">
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Attached job</div>
+                      <div className="mt-2 text-lg font-black text-ink">{jobTitle || "Selected job posting"}</div>
+                      <div className="mt-1 text-sm font-bold text-muted">{company || "Company will appear here"}</div>
+                      {jobDescription.trim() && (
+                        <p className="mt-3 line-clamp-3 text-sm font-semibold leading-6 text-muted">{jobDescription}</p>
+                      )}
+                    </div>
+                  )}
+                  <div className="mt-4 rounded-lg border border-[#E2DDEA] bg-white p-4 shadow-card">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Attach resume context</div>
+                        <p className="mt-1 text-sm font-semibold text-muted">
+                          Optional, but useful for stronger examples. Cover letters can still be drafted from the job alone.
+                        </p>
+                      </div>
+                      {hasResumeContent && (
+                        <div className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-emerald-700">
+                          Resume attached
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Link
+                        to={`/resumes?mode=select-for-cover&jobHandoff=1${jobId ? `&jobId=${encodeURIComponent(jobId)}` : ""}`}
+                        state={handoff ? { ...handoff, workflow: "cover" } : undefined}
+                        className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-white px-4 py-2 text-sm font-black text-brand-500 hover:bg-brand-50"
+                      >
+                        <FileText size={16} />
+                        Use saved resume
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setCoverResumeAttachMode(coverResumeAttachMode === "upload" ? "closed" : "upload")}
+                        className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-white px-4 py-2 text-sm font-black text-brand-500 hover:bg-brand-50"
+                      >
+                        <ArrowUp size={16} />
+                        Upload resume
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCoverResumeAttachMode(coverResumeAttachMode === "paste" ? "closed" : "paste")}
+                        className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-white px-4 py-2 text-sm font-black text-brand-500 hover:bg-brand-50"
+                      >
+                        <FileText size={16} />
+                        Paste resume text
+                      </button>
+                    </div>
+                    {coverResumeAttachMode === "upload" && (
+                      <div className="mt-4">
+                        <ResumeFileInput onParsed={handleCoverResumeParsed} />
+                      </div>
+                    )}
+                    {coverResumeAttachMode === "paste" && (
+                      <div className="mt-4">
+                        <textarea
+                          value={pastedResume}
+                          onChange={(e) => setPastedResume(e.target.value)}
+                          className="min-h-[130px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300"
+                          placeholder="Paste resume text to improve cover letter suggestions"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCoverPastedResume}
+                          className="mt-3 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white hover:bg-brand-600"
+                        >
+                          Attach resume context <ArrowRight size={17} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-3">
                     {coverLetterTemplates.map((template) => (
                       <button
@@ -1660,6 +1818,29 @@ export default function ResumeWorkspace() {
                     ))}
                   </div>
                   <div className="mt-4 grid gap-3">
+                    <div className="rounded-lg border border-[#E2DDEA] bg-white p-4">
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Your information</div>
+                      <div className="mt-3 grid gap-3">
+                        <input
+                          value={coverFields.senderName}
+                          onChange={(e) => setCoverFields((current) => ({ ...current, senderName: e.target.value }))}
+                          className="min-h-12 rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300"
+                          placeholder="Your name"
+                        />
+                        <input
+                          value={coverFields.senderTitle}
+                          onChange={(e) => setCoverFields((current) => ({ ...current, senderTitle: e.target.value }))}
+                          className="min-h-12 rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300"
+                          placeholder="Your title or headline"
+                        />
+                        <input
+                          value={coverFields.senderContact}
+                          onChange={(e) => setCoverFields((current) => ({ ...current, senderContact: e.target.value }))}
+                          className="min-h-12 rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300"
+                          placeholder="Email | phone | location | portfolio"
+                        />
+                      </div>
+                    </div>
                     <input
                       value={coverFields.companyName}
                       onChange={(e) => setCoverFields((current) => ({ ...current, companyName: e.target.value }))}
@@ -1693,11 +1874,11 @@ export default function ResumeWorkspace() {
                     {pro ? (
                       <button
                         type="button"
-                        onClick={applyAiCoverSuggestions}
+                        onClick={analysis ? applyAiCoverSuggestions : generateCoverLetter}
                         className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white hover:bg-brand-600"
                       >
                         <Sparkles size={17} />
-                        {analysis ? "Apply analyzer suggestions" : "Run analyzer for suggestions"}
+                        {analysisLoading ? "Generating..." : analysis ? "Apply analyzer suggestions" : "Generate cover letter"}
                       </button>
                     ) : (
                       <Link
@@ -1711,63 +1892,77 @@ export default function ResumeWorkspace() {
                   </div>
                 </div>
               )}
-              <h2 className="flex items-center gap-2 text-2xl font-black text-ink">
-                <Search size={25} />
-                Compare a Job Description to Your Resume
-              </h2>
-              {!hasResumeContent && (
-                <div className="mt-5">
-                  {resumeSourcePanel}
-                  <div className="rounded-lg bg-brand-50 p-3 text-sm font-bold text-muted">
-                    Upload or paste a resume first, then add the job description you want to compare.
-                  </div>
-                </div>
-              )}
-              {hasResumeContent && (
+              {activeTab === "matcher" && (
                 <>
-              <div className="mt-3 inline-flex rounded-lg bg-[#FFF3CF] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-ink">
-                External job search coming soon
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-                <input
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                  className="min-h-12 rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300"
-                  placeholder="Job title"
-                />
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("matcher")}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white"
-                >
-                  <Search size={18} />
-                  Search
-                </button>
-              </div>
-              <div className="mt-6 border-t border-[#EEEAF3] pt-5">
-                <div className="mb-3 flex items-center justify-between gap-4">
-                  <h3 className="text-xl font-black text-ink">Add a Job Description</h3>
-                  <button
-                  type="button"
-                  onClick={runBuilderAnalysis}
-                  className="rounded-lg bg-[#FFF3CF] px-4 py-2 text-sm font-black text-ink"
-                >
-                    {analysisLoading ? "Matching..." : "Match Job"}
-                  </button>
-                </div>
-                <input
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  className="mb-3 min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300"
-                  placeholder="Company"
-                />
-                <textarea
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                  className="min-h-[180px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300"
-                  placeholder="Paste the job description here"
-                />
-              </div>
+                  <h2 className="flex items-center gap-2 text-2xl font-black text-ink">
+                    <Search size={25} />
+                    Compare a Job Description to Your Resume
+                  </h2>
+                  {(jobTitle.trim() || company.trim() || jobDescription.trim()) && (
+                    <div className="mt-5 rounded-lg border border-brand-100 bg-brand-50 p-4">
+                      <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Attached job</div>
+                      <div className="mt-2 text-lg font-black text-ink">{jobTitle || "Selected job posting"}</div>
+                      <div className="mt-1 text-sm font-bold text-muted">{company || "Company will appear here"}</div>
+                      {jobDescription.trim() && (
+                        <p className="mt-3 line-clamp-3 text-sm font-semibold leading-6 text-muted">{jobDescription}</p>
+                      )}
+                    </div>
+                  )}
+                  {!hasResumeContent && (
+                    <div className="mt-5">
+                      {resumeSourcePanel}
+                      <div className="rounded-lg bg-brand-50 p-3 text-sm font-bold text-muted">
+                        Upload or paste a resume first, then add the job description you want to compare.
+                      </div>
+                    </div>
+                  )}
+                  {hasResumeContent && (
+                    <>
+                      <div className="mt-3 inline-flex rounded-lg bg-[#FFF3CF] px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-ink">
+                        External job search coming soon
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                        <input
+                          value={jobTitle}
+                          onChange={(e) => setJobTitle(e.target.value)}
+                          className="min-h-12 rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300"
+                          placeholder="Job title"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("matcher")}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-500 px-5 py-3 text-sm font-black text-white"
+                        >
+                          <Search size={18} />
+                          Search
+                        </button>
+                      </div>
+                      <div className="mt-6 border-t border-[#EEEAF3] pt-5">
+                        <div className="mb-3 flex items-center justify-between gap-4">
+                          <h3 className="text-xl font-black text-ink">Add a Job Description</h3>
+                          <button
+                            type="button"
+                            onClick={runBuilderAnalysis}
+                            className="rounded-lg bg-[#FFF3CF] px-4 py-2 text-sm font-black text-ink"
+                          >
+                            {analysisLoading ? "Matching..." : "Match Job"}
+                          </button>
+                        </div>
+                        <input
+                          value={company}
+                          onChange={(e) => setCompany(e.target.value)}
+                          className="mb-3 min-h-12 w-full rounded-lg border border-[#DCD6E5] px-4 text-sm font-bold outline-none focus:border-brand-300"
+                          placeholder="Company"
+                        />
+                        <textarea
+                          value={jobDescription}
+                          onChange={(e) => setJobDescription(e.target.value)}
+                          className="min-h-[180px] w-full rounded-lg border border-[#DCD6E5] p-4 text-sm font-semibold outline-none focus:border-brand-300"
+                          placeholder="Paste the job description here"
+                        />
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -1793,15 +1988,36 @@ export default function ResumeWorkspace() {
                       <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Editor</div>
                       <p className="mt-1 text-sm font-semibold text-muted">Open a section to edit fields. The preview updates as you go.</p>
                     </div>
-                    {needsResumeSource && (
-                      <button
-                        type="button"
-                        onClick={() => setShowResumeSource(true)}
-                        className="rounded-lg border border-[#DCD6E5] bg-white px-4 py-2 text-sm font-black text-brand-500 hover:bg-brand-50"
-                      >
-                        Import another resume
-                      </button>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {pro && hasResumeContent && (
+                        <button
+                          type="button"
+                          onClick={openSavePrompt}
+                          className="inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-black text-white hover:bg-brand-600"
+                        >
+                          <FileText size={16} />
+                          Save to Saved Resumes
+                        </button>
+                      )}
+                      {!pro && hasResumeContent && (
+                        <Link
+                          to="/pro"
+                          className="inline-flex items-center gap-2 rounded-lg border border-brand-200 bg-white px-4 py-2 text-sm font-black text-brand-500 hover:bg-brand-50"
+                        >
+                          <FileText size={16} />
+                          Save with Pro
+                        </Link>
+                      )}
+                      {needsResumeSource && (
+                        <button
+                          type="button"
+                          onClick={() => setShowResumeSource(true)}
+                          className="rounded-lg border border-[#DCD6E5] bg-white px-4 py-2 text-sm font-black text-brand-500 hover:bg-brand-50"
+                        >
+                          Import another resume
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="border-y border-[#D4D1DA]">
                     {renderSectionEditor("contact")}
@@ -1831,7 +2047,9 @@ export default function ResumeWorkspace() {
         </section>
 
         <aside className="min-w-0 overflow-hidden bg-[#F4F4F5] p-4 md:max-h-[calc(100vh-124px)] md:overflow-y-auto lg:p-6 shell-scroll">
-          {!hasResumeContent ? (
+          {activeTab === "cover" ? (
+            <CoverLetterPreview fields={coverFields} resume={coverPreviewResume} targetTitle={jobTitle || resume.targetTitle} pro={pro} />
+          ) : !hasResumeContent ? (
             <div className="rounded-lg border border-[#D8D6DC] bg-white p-5">
               <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">Resume needed</div>
               <h2 className="mt-2 text-2xl font-black text-ink">Upload or paste your resume to start</h2>
@@ -1847,8 +2065,6 @@ export default function ResumeWorkspace() {
               error={analysisError}
               onAnalyze={runBuilderAnalysis}
             />
-          ) : activeTab === "cover" ? (
-            <CoverLetterPreview fields={coverFields} resume={resume} targetTitle={jobTitle || resume.targetTitle} pro={pro} />
           ) : activeTab === "analyzer" ? (
             <RecommendationList analysis={analysis} />
           ) : (
@@ -2033,9 +2249,11 @@ function CoverLetterPreview({
   pro,
 }: {
   fields: {
+    senderName: string;
+    senderTitle: string;
+    senderContact: string;
     hiringManager: string;
     companyName: string;
-    roleLine: string;
     opening: string;
     body: string;
     closing: string;
@@ -2052,7 +2270,7 @@ function CoverLetterPreview({
         </div>
       )}
       <h2 className="text-2xl font-black text-brand-500">{resume.candidateName}</h2>
-      <p className="mt-1 text-xs font-semibold text-ink">{fields.roleLine}</p>
+      {fields.senderTitle.trim() && <p className="mt-1 text-xs font-semibold text-ink">{fields.senderTitle}</p>}
       <p className="mt-1 text-xs font-semibold text-muted">{resume.contact}</p>
       <div className="mt-8 space-y-4 text-sm font-medium leading-7 text-ink">
         <p>{new Date().toLocaleDateString()}</p>

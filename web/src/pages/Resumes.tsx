@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Crown, FileText, Loader2, Plus, Trash2, Pencil, Save, X, Zap, ArrowRight } from "lucide-react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, CheckCircle2, Crown, FileText, Loader2, Plus, Trash2, Pencil, Save, X, Zap, ArrowRight } from "lucide-react";
 import { isPro, getDeviceId } from "../storage";
 import { listResumes, createResume, updateResume, deleteResume } from "../api";
 import type { SavedResume } from "../types";
 import { track } from "../analytics";
+import { createJobHandoff, findPlaceholderJob, readStoredJobHandoff, type JobSearchHandoff } from "../jobSearchData";
 
 const STRUCTURED_RESUME_PREFIX = "LANDIT_RESUME_JSON:";
 
@@ -54,7 +55,17 @@ function resumeAnalysisText(content: string) {
 
 export default function Resumes() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const pro = isPro();
+  const queryJob = findPlaceholderJob(searchParams.get("jobId"));
+  const handoff =
+    (location.state as JobSearchHandoff | null) ||
+    (searchParams.get("jobHandoff") === "1" ? (queryJob ? createJobHandoff(queryJob) : readStoredJobHandoff()) : null);
+  const jobSelectionMode = searchParams.get("mode") === "select-for-job" && !!(handoff?.jd || handoff?.jobDescription);
+  const coverSelectionMode = searchParams.get("mode") === "select-for-cover" && !!(handoff?.jd || handoff?.jobDescription);
+  const selectionMode = jobSelectionMode || coverSelectionMode;
+  const handoffJd = handoff?.jd || handoff?.jobDescription || "";
   const [items, setItems] = useState<SavedResume[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -149,6 +160,28 @@ export default function Resumes() {
     }
   };
 
+  const selectResumeForWorkflow = (r: SavedResume) => {
+    if (coverSelectionMode) {
+      const jobId = handoff?.job?.id || searchParams.get("jobId") || "";
+      navigate(
+        `/resume-builder/workspace?mode=cover-letter&tab=cover&resume_id=${encodeURIComponent(r.id)}&jobHandoff=1${
+          jobId ? `&jobId=${encodeURIComponent(jobId)}` : ""
+        }`,
+        { state: handoff ? { ...handoff, workflow: "cover" } : undefined }
+      );
+      return;
+    }
+    navigate("/analyze", {
+      state: {
+        resume: resumeAnalysisText(r.content),
+        jd: handoffJd,
+        savedJobId: searchParams.get("savedJobId") || undefined,
+        resumeId: r.id,
+        resumeLabel: r.label,
+      },
+    });
+  };
+
   if (!pro) {
     return (
       <div className="px-4 lg:px-10 pt-6" data-testid="resumes-locked-screen">
@@ -206,6 +239,21 @@ export default function Resumes() {
 
       {error && (
         <div data-testid="resumes-error" className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-3 mb-3">{error}</div>
+      )}
+
+      {selectionMode && (
+        <div className="mb-4 rounded-2xl border border-brand-100 bg-brand-50 p-4">
+          <div className="text-xs font-black uppercase tracking-[0.16em] text-brand-500">
+            {coverSelectionMode ? "Attach saved resume" : "Match saved resume"}
+          </div>
+          <h3 className="mt-1 text-xl font-black text-ink">{handoff?.job?.title || "Selected job"}</h3>
+          <p className="mt-1 text-sm font-bold text-muted">{handoff?.job?.company || "Choose a saved resume to continue."}</p>
+          <p className="mt-3 text-sm font-semibold leading-6 text-muted">
+            {coverSelectionMode
+              ? "Select a resume below and LandIt will return to the cover letter editor with this resume attached as context."
+              : "Select a resume below and LandIt will open the analyzer with this job description and resume already filled in."}
+          </p>
+        </div>
       )}
 
       {creating && (
@@ -312,6 +360,16 @@ export default function Resumes() {
                       <p className="text-sm text-muted leading-snug mt-2 line-clamp-2">
                         {resumePreviewText(r.content).slice(0, 220)}{resumePreviewText(r.content).length > 220 ? "\u2026" : ""}
                       </p>
+                      {selectionMode && (
+                        <button
+                          type="button"
+                          onClick={() => selectResumeForWorkflow(r)}
+                          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-500 px-5 py-3 text-sm font-black text-white hover:bg-brand-600"
+                        >
+                          <CheckCircle2 size={17} />
+                          {coverSelectionMode ? "Select and return" : "Select and analyze"}
+                        </button>
+                      )}
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <button
@@ -322,8 +380,16 @@ export default function Resumes() {
                         <ArrowRight size={16} />
                       </button>
                       <button
-                        onClick={() => navigate("/analyze", { state: { resume: resumeAnalysisText(r.content) } })}
-                        title="Use in analysis"
+                        onClick={() =>
+                          selectionMode
+                            ? selectResumeForWorkflow(r)
+                            : navigate("/analyze", {
+                                state: {
+                                  resume: resumeAnalysisText(r.content),
+                                },
+                              })
+                        }
+                        title={coverSelectionMode ? "Attach to cover letter" : selectionMode ? "Analyze with selected job" : "Use in analysis"}
                         className="w-9 h-9 rounded-full hover:bg-brand-50 flex items-center justify-center text-muted hover:text-brand-700"
                       >
                         <Zap size={16} />
