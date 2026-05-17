@@ -55,7 +55,7 @@ export default function Account() {
           </p>
           <div className="mt-5 rounded-lg bg-[#F7F5FA] p-4">
             <div className="text-xs font-black uppercase tracking-[0.16em] text-muted">Profile</div>
-            <div className="mt-2 text-2xl font-black text-ink">KJ</div>
+            <div className="mt-2 text-2xl font-black text-ink">User</div>
             <div className="mt-1 text-sm font-semibold text-muted">Device profile</div>
           </div>
         </div>
