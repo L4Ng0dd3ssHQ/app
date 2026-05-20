@@ -1,4 +1,4 @@
-import type { Analysis, SavedResume } from "./types";
+import type { Analysis, SavedJob, SavedResume } from "./types";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL as string | undefined;
 
@@ -108,6 +108,54 @@ export async function updateResume(resumeId: string, deviceId: string, data: { l
 
 export async function deleteResume(resumeId: string, deviceId: string): Promise<{ deleted: boolean }> {
   const res = await fetch(`${BACKEND_URL}/api/resumes/${encodeURIComponent(resumeId)}?device_id=${encodeURIComponent(deviceId)}`, {
+    method: "DELETE",
+  });
+  return asJson<{ deleted: boolean }>(res);
+}
+
+export type SavedJobCreateInput = Omit<SavedJob, "id" | "device_id" | "created_at" | "updated_at"> & {
+  device_id: string;
+};
+
+export type SavedJobUpdateInput = Partial<
+  Pick<
+    SavedJob,
+    | "status"
+    | "notes"
+    | "resume_id"
+    | "resume_label"
+    | "analysis_id"
+    | "cover_letter_id"
+    | "applied_at"
+    | "follow_up_at"
+  >
+>;
+
+export async function listSavedJobs(deviceId: string): Promise<SavedJob[]> {
+  const res = await fetch(`${BACKEND_URL}/api/saved-jobs/${encodeURIComponent(deviceId)}`);
+  return asJson<SavedJob[]>(res);
+}
+
+export async function createSavedJob(input: SavedJobCreateInput): Promise<SavedJob> {
+  const res = await fetch(`${BACKEND_URL}/api/saved-jobs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return asJson<SavedJob>(res);
+}
+
+export async function updateSavedJob(jobId: string, deviceId: string, data: SavedJobUpdateInput): Promise<SavedJob> {
+  const res = await fetch(`${BACKEND_URL}/api/saved-jobs/${encodeURIComponent(jobId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ device_id: deviceId, ...data }),
+  });
+  return asJson<SavedJob>(res);
+}
+
+export async function deleteSavedJob(jobId: string, deviceId: string): Promise<{ deleted: boolean }> {
+  const res = await fetch(`${BACKEND_URL}/api/saved-jobs/${encodeURIComponent(jobId)}?device_id=${encodeURIComponent(deviceId)}`, {
     method: "DELETE",
   });
   return asJson<{ deleted: boolean }>(res);

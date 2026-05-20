@@ -611,6 +611,10 @@ class ResumeUpdateRequest(BaseModel):
 MAX_RESUMES = 25
 MAX_RESUME_CHARS = 50000
 MAX_LABEL_CHARS = 80
+JOB_STATUSES = {"saved", "applied", "interviewing", "offer", "rejected"}
+MAX_SAVED_JOBS = 100
+MAX_JOB_TEXT_CHARS = 30000
+MAX_JOB_NOTES_CHARS = 5000
 
 
 @api_router.post("/resumes", response_model=SavedResume)
@@ -682,6 +686,198 @@ async def delete_resume(resume_id: str, device_id: str):
     res = await db.resumes.delete_one({"id": resume_id, "device_id": device_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Resume not found.")
+    return {"deleted": True}
+
+
+# ===== Saved Jobs / Application Tracker (Pro feature) =====
+
+class SavedJob(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    device_id: str
+    source: str = ""
+    source_id: Optional[str] = None
+    sourceUrl: str = ""
+    title: str
+    company: str = ""
+    location: str = ""
+    salary: str = ""
+    employmentType: str = ""
+    remoteType: str = ""
+    schedule: str = ""
+    postedAt: str = ""
+    shortDescription: str = ""
+    description: str = ""
+    applyUrl: str = ""
+    status: str = "saved"
+    notes: str = ""
+    resume_id: Optional[str] = None
+    resume_label: Optional[str] = None
+    analysis_id: Optional[str] = None
+    cover_letter_id: Optional[str] = None
+    applied_at: Optional[str] = None
+    follow_up_at: Optional[str] = None
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class SavedJobCreateRequest(BaseModel):
+    device_id: str
+    source: str = ""
+    source_id: Optional[str] = None
+    sourceUrl: str = ""
+    title: str
+    company: str = ""
+    location: str = ""
+    salary: str = ""
+    employmentType: str = ""
+    remoteType: str = ""
+    schedule: str = ""
+    postedAt: str = ""
+    shortDescription: str = ""
+    description: str = ""
+    applyUrl: str = ""
+    status: str = "saved"
+    notes: str = ""
+    resume_id: Optional[str] = None
+    resume_label: Optional[str] = None
+    analysis_id: Optional[str] = None
+    cover_letter_id: Optional[str] = None
+    applied_at: Optional[str] = None
+    follow_up_at: Optional[str] = None
+
+
+class SavedJobUpdateRequest(BaseModel):
+    device_id: str
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    resume_id: Optional[str] = None
+    resume_label: Optional[str] = None
+    analysis_id: Optional[str] = None
+    cover_letter_id: Optional[str] = None
+    applied_at: Optional[str] = None
+    follow_up_at: Optional[str] = None
+
+
+def _clean_job_status(status: Optional[str]) -> str:
+    value = (status or "saved").strip().lower()
+    if value not in JOB_STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid job status.")
+    return value
+
+
+def _clean_job_text(value: Optional[str], limit: int = 240) -> str:
+    return (value or "").strip()[:limit]
+
+
+def _saved_job_duplicate_query(device_id: str, source_url: str, source: str, source_id: Optional[str]) -> Optional[dict]:
+    if source_url:
+        return {"device_id": device_id, "sourceUrl": source_url}
+    if source and source_id:
+        return {"device_id": device_id, "source": source, "source_id": source_id}
+    return None
+
+
+def _saved_job_document_from_create(req: SavedJobCreateRequest) -> SavedJob:
+    title = _clean_job_text(req.title, 180)
+    if not title:
+        raise HTTPException(status_code=400, detail="Job title is required.")
+    return SavedJob(
+        device_id=req.device_id,
+        source=_clean_job_text(req.source, 120),
+        source_id=_clean_job_text(req.source_id, 180) or None,
+        sourceUrl=_clean_job_text(req.sourceUrl, 500),
+        title=title,
+        company=_clean_job_text(req.company, 180),
+        location=_clean_job_text(req.location, 180),
+        salary=_clean_job_text(req.salary, 140),
+        employmentType=_clean_job_text(req.employmentType, 120),
+        remoteType=_clean_job_text(req.remoteType, 120),
+        schedule=_clean_job_text(req.schedule, 120),
+        postedAt=_clean_job_text(req.postedAt, 80),
+        shortDescription=_clean_job_text(req.shortDescription, 600),
+        description=_clean_job_text(req.description, MAX_JOB_TEXT_CHARS),
+        applyUrl=_clean_job_text(req.applyUrl, 500),
+        status=_clean_job_status(req.status),
+        notes=_clean_job_text(req.notes, MAX_JOB_NOTES_CHARS),
+        resume_id=_clean_job_text(req.resume_id, 120) or None,
+        resume_label=_clean_job_text(req.resume_label, 180) or None,
+        analysis_id=_clean_job_text(req.analysis_id, 120) or None,
+        cover_letter_id=_clean_job_text(req.cover_letter_id, 120) or None,
+        applied_at=_clean_job_text(req.applied_at, 80) or None,
+        follow_up_at=_clean_job_text(req.follow_up_at, 80) or None,
+    )
+
+
+@api_router.post("/saved-jobs", response_model=SavedJob)
+async def create_saved_job(req: SavedJobCreateRequest):
+    _validate_device_id(req.device_id)
+    if not await _device_is_pro(req.device_id):
+        raise HTTPException(status_code=403, detail="Saved jobs are a Pro feature.")
+
+    saved_job = _saved_job_document_from_create(req)
+    duplicate_query = _saved_job_duplicate_query(saved_job.device_id, saved_job.sourceUrl, saved_job.source, saved_job.source_id)
+    if duplicate_query:
+        existing = await db.saved_jobs.find_one(duplicate_query, {"_id": 0})
+        if existing:
+            update = json.loads(saved_job.model_dump_json())
+            update.pop("id", None)
+            update.pop("created_at", None)
+            update["updated_at"] = datetime.now(timezone.utc).isoformat()
+            await db.saved_jobs.update_one({"id": existing["id"], "device_id": req.device_id}, {"$set": update})
+            doc = await db.saved_jobs.find_one({"id": existing["id"], "device_id": req.device_id}, {"_id": 0})
+            return SavedJob(**doc)
+
+    count = await db.saved_jobs.count_documents({"device_id": req.device_id})
+    if count >= MAX_SAVED_JOBS:
+        raise HTTPException(status_code=400, detail=f"Saved job limit reached ({MAX_SAVED_JOBS}). Delete one to add another.")
+
+    await db.saved_jobs.insert_one(json.loads(saved_job.model_dump_json()))
+    return saved_job
+
+
+@api_router.get("/saved-jobs/{device_id}", response_model=List[SavedJob])
+async def list_saved_jobs(device_id: str):
+    _validate_device_id(device_id)
+    if not await _device_is_pro(device_id):
+        raise HTTPException(status_code=403, detail="Saved jobs are a Pro feature.")
+    cursor = db.saved_jobs.find({"device_id": device_id}, {"_id": 0}).sort("updated_at", -1)
+    docs = await cursor.to_list(length=MAX_SAVED_JOBS)
+    return [SavedJob(**d) for d in docs]
+
+
+@api_router.put("/saved-jobs/{job_id}", response_model=SavedJob)
+async def update_saved_job(job_id: str, req: SavedJobUpdateRequest):
+    _validate_device_id(req.device_id)
+    if not await _device_is_pro(req.device_id):
+        raise HTTPException(status_code=403, detail="Saved jobs are a Pro feature.")
+
+    existing = await db.saved_jobs.find_one({"id": job_id, "device_id": req.device_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Saved job not found.")
+
+    update: dict = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    if req.status is not None:
+        update["status"] = _clean_job_status(req.status)
+    if req.notes is not None:
+        update["notes"] = _clean_job_text(req.notes, MAX_JOB_NOTES_CHARS)
+    for field_name in ("resume_id", "resume_label", "analysis_id", "cover_letter_id", "applied_at", "follow_up_at"):
+        value = getattr(req, field_name)
+        if value is not None:
+            update[field_name] = _clean_job_text(value, 180) or None
+
+    await db.saved_jobs.update_one({"id": job_id, "device_id": req.device_id}, {"$set": update})
+    doc = await db.saved_jobs.find_one({"id": job_id, "device_id": req.device_id}, {"_id": 0})
+    return SavedJob(**doc)
+
+
+@api_router.delete("/saved-jobs/{job_id}")
+async def delete_saved_job(job_id: str, device_id: str):
+    _validate_device_id(device_id)
+    if not await _device_is_pro(device_id):
+        raise HTTPException(status_code=403, detail="Saved jobs are a Pro feature.")
+    res = await db.saved_jobs.delete_one({"id": job_id, "device_id": device_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Saved job not found.")
     return {"deleted": True}
 
 
